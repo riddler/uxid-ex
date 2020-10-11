@@ -5,7 +5,7 @@ defmodule UXID do
   alias UXID.Decoder
   alias UXID.Encoder
 
-  defstruct [:encoded, :prefix, :rand_size, :string, :time]
+  defstruct [:encoded, :prefix, :rand_size, :rand, :rand_encoded, :string, :time, :time_encoded]
 
   # @doc """
   # Decodes a UXID from a string.

@@ -9,8 +9,8 @@ defmodule UXID.Encoder do
   def process(%UXID{} = struct) do
     uxid =
       struct
-      |> ensure_time_and_rand_size()
-      |> generate_id()
+      |> ensure_params()
+      |> encode()
       |> prefix()
 
     {:ok, uxid}
@@ -18,15 +18,51 @@ defmodule UXID.Encoder do
 
   # === Private helpers
 
+  defp ensure_params(%UXID{time: nil} = uxid),
+    do: ensure_params(%{uxid | time: System.system_time(:millisecond)})
+
+  defp ensure_params(%UXID{rand_size: nil} = uxid),
+    do: ensure_params(%{uxid | rand_size: @default_rand_size})
+
+  defp ensure_params(%UXID{rand_size: rand_size, rand: nil} = uxid),
+    do: ensure_params(%{uxid | rand: :crypto.strong_rand_bytes(rand_size)})
+
+  defp ensure_params(uxid), do: uxid
+
+  defp encode(%UXID{} = input) do
+    uxid =
+      input
+      |> encode_time()
+      |> encode_rand()
+
+    %{uxid | encoded: uxid.time_encoded <> uxid.rand_encoded}
+  end
+
+  defp encode_time(%UXID{time: time, time_encoded: nil} = uxid) do
+    string = encode_time(<<time::unsigned-size(48)>>)
+    %{uxid | time_encoded: string}
+  end
+
+  defp encode_time(<<t1::3, t2::5, t3::5, t4::5, t5::5, t6::5, t7::5, t8::5, t9::5, t10::5>>) do
+    <<e(t1), e(t2), e(t3), e(t4), e(t5), e(t6), e(t7), e(t8), e(t9), e(t10)>>
+  catch
+    :error -> :error
+  else
+    time_encoded -> time_encoded
+  end
+
+  defp encode_rand(%UXID{rand_size: rand_size, rand_encoded: nil} = uxid) do
+    string = encode_rand(:crypto.strong_rand_bytes(rand_size))
+    %{uxid | rand_encoded: string}
+  end
+
   # Encode with 10 bytes of randomness (80 bits)
-  defp encode(
-         <<t1::3, t2::5, t3::5, t4::5, t5::5, t6::5, t7::5, t8::5, t9::5, t10::5, r1::5, r2::5,
-           r3::5, r4::5, r5::5, r6::5, r7::5, r8::5, r9::5, r10::5, r11::5, r12::5, r13::5,
-           r14::5, r15::5, r16::5>>
+  defp encode_rand(
+         <<r1::5, r2::5, r3::5, r4::5, r5::5, r6::5, r7::5, r8::5, r9::5, r10::5, r11::5, r12::5,
+           r13::5, r14::5, r15::5, r16::5>>
        ) do
-    <<e(t1), e(t2), e(t3), e(t4), e(t5), e(t6), e(t7), e(t8), e(t9), e(t10), e(r1), e(r2), e(r3),
-      e(r4), e(r5), e(r6), e(r7), e(r8), e(r9), e(r10), e(r11), e(r12), e(r13), e(r14), e(r15),
-      e(r16)>>
+    <<e(r1), e(r2), e(r3), e(r4), e(r5), e(r6), e(r7), e(r8), e(r9), e(r10), e(r11), e(r12),
+      e(r13), e(r14), e(r15), e(r16)>>
   catch
     :error -> :error
   else
@@ -34,13 +70,12 @@ defmodule UXID.Encoder do
   end
 
   # Encode with 9 bytes of randomness (72 bits)
-  defp encode(
-         <<t1::3, t2::5, t3::5, t4::5, t5::5, t6::5, t7::5, t8::5, t9::5, t10::5, r1::5, r2::5,
-           r3::5, r4::5, r5::5, r6::5, r7::5, r8::5, r9::5, r10::5, r11::5, r12::5, r13::5,
-           r14::5, r15::2>>
+  defp encode_rand(
+         <<r1::5, r2::5, r3::5, r4::5, r5::5, r6::5, r7::5, r8::5, r9::5, r10::5, r11::5, r12::5,
+           r13::5, r14::5, r15::2>>
        ) do
-    <<e(t1), e(t2), e(t3), e(t4), e(t5), e(t6), e(t7), e(t8), e(t9), e(t10), e(r1), e(r2), e(r3),
-      e(r4), e(r5), e(r6), e(r7), e(r8), e(r9), e(r10), e(r11), e(r12), e(r13), e(r14), e(r15)>>
+    <<e(r1), e(r2), e(r3), e(r4), e(r5), e(r6), e(r7), e(r8), e(r9), e(r10), e(r11), e(r12),
+      e(r13), e(r14), e(r15)>>
   catch
     :error -> :error
   else
@@ -48,12 +83,12 @@ defmodule UXID.Encoder do
   end
 
   # Encode with 8 bytes of randomness (64 bits)
-  defp encode(
-         <<t1::3, t2::5, t3::5, t4::5, t5::5, t6::5, t7::5, t8::5, t9::5, t10::5, r1::5, r2::5,
-           r3::5, r4::5, r5::5, r6::5, r7::5, r8::5, r9::5, r10::5, r11::5, r12::5, r13::4>>
+  defp encode_rand(
+         <<r1::5, r2::5, r3::5, r4::5, r5::5, r6::5, r7::5, r8::5, r9::5, r10::5, r11::5, r12::5,
+           r13::4>>
        ) do
-    <<e(t1), e(t2), e(t3), e(t4), e(t5), e(t6), e(t7), e(t8), e(t9), e(t10), e(r1), e(r2), e(r3),
-      e(r4), e(r5), e(r6), e(r7), e(r8), e(r9), e(r10), e(r11), e(r12), e(r13)>>
+    <<e(r1), e(r2), e(r3), e(r4), e(r5), e(r6), e(r7), e(r8), e(r9), e(r10), e(r11), e(r12),
+      e(r13)>>
   catch
     :error -> :error
   else
@@ -61,12 +96,10 @@ defmodule UXID.Encoder do
   end
 
   # Encode with 7 bytes of randomness (56 bits)
-  defp encode(
-         <<t1::3, t2::5, t3::5, t4::5, t5::5, t6::5, t7::5, t8::5, t9::5, t10::5, r1::5, r2::5,
-           r3::5, r4::5, r5::5, r6::5, r7::5, r8::5, r9::5, r10::5, r11::5, r12::1>>
+  defp encode_rand(
+         <<r1::5, r2::5, r3::5, r4::5, r5::5, r6::5, r7::5, r8::5, r9::5, r10::5, r11::5, r12::1>>
        ) do
-    <<e(t1), e(t2), e(t3), e(t4), e(t5), e(t6), e(t7), e(t8), e(t9), e(t10), e(r1), e(r2), e(r3),
-      e(r4), e(r5), e(r6), e(r7), e(r8), e(r9), e(r10), e(r11), e(r12)>>
+    <<e(r1), e(r2), e(r3), e(r4), e(r5), e(r6), e(r7), e(r8), e(r9), e(r10), e(r11), e(r12)>>
   catch
     :error -> :error
   else
@@ -74,12 +107,8 @@ defmodule UXID.Encoder do
   end
 
   # Encode with 6 bytes of randomness (48 bits)
-  defp encode(
-         <<t1::3, t2::5, t3::5, t4::5, t5::5, t6::5, t7::5, t8::5, t9::5, t10::5, r1::5, r2::5,
-           r3::5, r4::5, r5::5, r6::5, r7::5, r8::5, r9::5, r10::3>>
-       ) do
-    <<e(t1), e(t2), e(t3), e(t4), e(t5), e(t6), e(t7), e(t8), e(t9), e(t10), e(r1), e(r2), e(r3),
-      e(r4), e(r5), e(r6), e(r7), e(r8), e(r9), e(r10)>>
+  defp encode_rand(<<r1::5, r2::5, r3::5, r4::5, r5::5, r6::5, r7::5, r8::5, r9::5, r10::3>>) do
+    <<e(r1), e(r2), e(r3), e(r4), e(r5), e(r6), e(r7), e(r8), e(r9), e(r10)>>
   catch
     :error -> :error
   else
@@ -87,12 +116,8 @@ defmodule UXID.Encoder do
   end
 
   # Encode with 5 bytes of randomness (40 bits)
-  defp encode(
-         <<t1::3, t2::5, t3::5, t4::5, t5::5, t6::5, t7::5, t8::5, t9::5, t10::5, r1::5, r2::5,
-           r3::5, r4::5, r5::5, r6::5, r7::5, r8::5>>
-       ) do
-    <<e(t1), e(t2), e(t3), e(t4), e(t5), e(t6), e(t7), e(t8), e(t9), e(t10), e(r1), e(r2), e(r3),
-      e(r4), e(r5), e(r6), e(r7), e(r8)>>
+  defp encode_rand(<<r1::5, r2::5, r3::5, r4::5, r5::5, r6::5, r7::5, r8::5>>) do
+    <<e(r1), e(r2), e(r3), e(r4), e(r5), e(r6), e(r7), e(r8)>>
   catch
     :error -> :error
   else
@@ -100,12 +125,8 @@ defmodule UXID.Encoder do
   end
 
   # Encode with 4 bytes of randomness (32 bits)
-  defp encode(
-         <<t1::3, t2::5, t3::5, t4::5, t5::5, t6::5, t7::5, t8::5, t9::5, t10::5, r1::5, r2::5,
-           r3::5, r4::5, r5::5, r6::5, r7::2>>
-       ) do
-    <<e(t1), e(t2), e(t3), e(t4), e(t5), e(t6), e(t7), e(t8), e(t9), e(t10), e(r1), e(r2), e(r3),
-      e(r4), e(r5), e(r6), e(r7)>>
+  defp encode_rand(<<r1::5, r2::5, r3::5, r4::5, r5::5, r6::5, r7::2>>) do
+    <<e(r1), e(r2), e(r3), e(r4), e(r5), e(r6), e(r7)>>
   catch
     :error -> :error
   else
@@ -113,12 +134,8 @@ defmodule UXID.Encoder do
   end
 
   # Encode with 3 bytes of randomness (24 bits)
-  defp encode(
-         <<t1::3, t2::5, t3::5, t4::5, t5::5, t6::5, t7::5, t8::5, t9::5, t10::5, r1::5, r2::5,
-           r3::5, r4::5, r5::4>>
-       ) do
-    <<e(t1), e(t2), e(t3), e(t4), e(t5), e(t6), e(t7), e(t8), e(t9), e(t10), e(r1), e(r2), e(r3),
-      e(r4), e(r5)>>
+  defp encode_rand(<<r1::5, r2::5, r3::5, r4::5, r5::4>>) do
+    <<e(r1), e(r2), e(r3), e(r4), e(r5)>>
   catch
     :error -> :error
   else
@@ -126,12 +143,8 @@ defmodule UXID.Encoder do
   end
 
   # Encode with 2 bytes of randomness (16 bits)
-  defp encode(
-         <<t1::3, t2::5, t3::5, t4::5, t5::5, t6::5, t7::5, t8::5, t9::5, t10::5, r1::5, r2::5,
-           r3::5, r4::1>>
-       ) do
-    <<e(t1), e(t2), e(t3), e(t4), e(t5), e(t6), e(t7), e(t8), e(t9), e(t10), e(r1), e(r2), e(r3),
-      e(r4)>>
+  defp encode_rand(<<r1::5, r2::5, r3::5, r4::1>>) do
+    <<e(r1), e(r2), e(r3), e(r4)>>
   catch
     :error -> :error
   else
@@ -139,10 +152,8 @@ defmodule UXID.Encoder do
   end
 
   # Encode with 1 byte of randomness (8 bits)
-  defp encode(
-         <<t1::3, t2::5, t3::5, t4::5, t5::5, t6::5, t7::5, t8::5, t9::5, t10::5, r1::5, r2::3>>
-       ) do
-    <<e(t1), e(t2), e(t3), e(t4), e(t5), e(t6), e(t7), e(t8), e(t9), e(t10), e(r1), e(r2)>>
+  defp encode_rand(<<r1::5, r2::3>>) do
+    <<e(r1), e(r2)>>
   catch
     :error -> :error
   else
@@ -150,28 +161,9 @@ defmodule UXID.Encoder do
   end
 
   # Encode with 0 bytes of randomness
-  defp encode(<<t1::3, t2::5, t3::5, t4::5, t5::5, t6::5, t7::5, t8::5, t9::5, t10::5>>) do
-    <<e(t1), e(t2), e(t3), e(t4), e(t5), e(t6), e(t7), e(t8), e(t9), e(t10)>>
-  catch
-    :error -> :error
-  else
-    encoded -> encoded
-  end
+  defp encode_rand(""), do: ""
 
-  defp encode(_), do: :error
-
-  defp ensure_time_and_rand_size(%UXID{time: nil} = uxid),
-    do: ensure_time_and_rand_size(%{uxid | time: System.system_time(:millisecond)})
-
-  defp ensure_time_and_rand_size(%UXID{rand_size: nil} = uxid),
-    do: ensure_time_and_rand_size(%{uxid | rand_size: @default_rand_size})
-
-  defp ensure_time_and_rand_size(uxid), do: uxid
-
-  defp generate_id(%UXID{time: time, rand_size: rand_size} = uxid) do
-    string = encode(<<time::unsigned-size(48), :crypto.strong_rand_bytes(rand_size)::binary>>)
-    %{uxid | encoded: string}
-  end
+  defp encode_rand(_), do: :error
 
   defp prefix(%UXID{prefix: nil, encoded: encoded} = uxid), do: %{uxid | string: encoded}
 

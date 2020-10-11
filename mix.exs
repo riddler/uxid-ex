@@ -10,7 +10,10 @@ defmodule UXID.MixProject do
     # Required
 
     # Development, Documentation, Testing, ...
-    {:ex_doc, "~> 0.21", only: :dev}
+    {:ex_doc, "~> 0.21", only: :dev},
+    {:benchee, "~> 1.0", only: :dev},
+    {:benchee_html, "~> 1.0", only: :dev},
+    {:ecto_ulid, "~> 0.2", only: :dev}
   ]
 
   def application(), do: []

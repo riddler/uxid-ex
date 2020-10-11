@@ -54,13 +54,11 @@ defmodule UXID.Decoder do
   defp parse_fields(string) do
     decoded = CrockfordBase32.decode!(string)
 
-    <<_::2, time::unsigned-size(48), randomness::bitstring>> = decoded
+    <<_::2, time::unsigned-size(48), _::bitstring>> = decoded
 
     %UXID{
       encoded: string,
-      decoded: decoded,
-      time: time,
-      randomness: randomness
+      time: time
     }
   end
 

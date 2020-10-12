@@ -10,7 +10,7 @@ defmodule UXID.MixProject do
     # Required
 
     # Development, Documentation, Testing, ...
-    {:ex_doc, "~> 0.21", only: :dev},
+    {:ex_doc, "~> 0.22", only: :dev},
     {:benchee, "~> 1.0", only: :dev},
     {:benchee_html, "~> 1.0", only: :dev},
     {:ecto_ulid, "~> 0.2", only: :dev}
@@ -32,7 +32,8 @@ defmodule UXID.MixProject do
       elixirc_options: [warnings_as_errors: true],
       elixirc_paths: elixirc_paths(Mix.env()),
       preferred_cli_env: preferred_cli_env(),
-      test_coverage: [tool: ExCoveralls]
+      test_coverage: [tool: ExCoveralls],
+      docs: docs()
     ]
   end
 
@@ -48,10 +49,23 @@ defmodule UXID.MixProject do
   defp elixirc_paths(:test), do: ["test/support", "lib"]
   defp elixirc_paths(_), do: ["lib"]
 
+  defp docs do
+    [
+      main: "README",
+      source_url: "https://github.com/riddler/uxid",
+      # source_root: "impl/ex",
+      source_ref: "ex-v#{@version}/impl/ex",
+      extras: ["README.md"]
+    ]
+  end
+
   defp package() do
     [
       licenses: ["MIT"],
-      links: %{"GitHub" => "https://github.com/riddler/uxid"}
+      links: %{
+        "UXID Project" => "https://github.com/riddler/uxid",
+        "GitHub" => "https://github.com/riddler/uxid/tree/master/impl/ex"
+      }
     ]
   end
 

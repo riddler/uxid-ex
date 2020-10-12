@@ -16,19 +16,6 @@ defmodule UXID do
 
   defstruct [:encoded, :prefix, :rand_size, :rand, :rand_encoded, :string, :time, :time_encoded]
 
-  @typedoc "A UXID struct."
-
-  @type t() :: %__MODULE__{
-          encoded: String.t() | nil,
-          prefix: String.t() | nil,
-          rand_size: pos_integer() | nil,
-          rand: binary() | nil,
-          rand_encoded: String.t() | nil,
-          string: String.t() | nil,
-          time: pos_integer() | nil,
-          time_encoded: Stream.t() | nil
-        }
-
   @typedoc "Options for generating a UXID"
   @type option :: {:time, integer()} | {:rand_size, integer()} | {:prefix, String.t()}
   @type options :: [option()]
@@ -38,6 +25,18 @@ defmodule UXID do
 
   @typedoc "An error string returned by the library if generation fails"
   @type error_string :: String.t()
+
+  @typedoc "A UXID struct"
+  @type t() :: %__MODULE__{
+          encoded: String.t() | nil,
+          prefix: String.t() | nil,
+          rand_size: pos_integer() | nil,
+          rand: binary() | nil,
+          rand_encoded: String.t() | nil,
+          string: String.t() | nil,
+          time: pos_integer() | nil,
+          time_encoded: String.t() | nil
+        }
 
   alias UXID.Decoder
   alias UXID.Encoder

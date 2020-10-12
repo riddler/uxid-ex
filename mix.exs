@@ -33,6 +33,9 @@ defmodule UXID.MixProject do
       elixirc_paths: elixirc_paths(Mix.env()),
       preferred_cli_env: preferred_cli_env(),
       test_coverage: [tool: ExCoveralls],
+
+      # Docs
+      source_url: "https://github.com/riddler/uxid",
       docs: docs()
     ]
   end
@@ -51,7 +54,7 @@ defmodule UXID.MixProject do
 
   defp docs do
     [
-      main: "README",
+      main: "readme",
       source_url: "https://github.com/riddler/uxid",
       source_ref: "ex-v#{@version}/impl/ex",
       extras: ["README.md"]

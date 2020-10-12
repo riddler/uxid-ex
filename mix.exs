@@ -4,7 +4,7 @@ defmodule UXID.MixProject do
   @name "UXID"
   @app :uxid
   @description "User eXperience focused IDentifiers"
-  @version "0.0.1"
+  @version "0.0.2"
 
   @deps [
     # Required
@@ -53,7 +53,6 @@ defmodule UXID.MixProject do
     [
       main: "README",
       source_url: "https://github.com/riddler/uxid",
-      # source_root: "impl/ex",
       source_ref: "ex-v#{@version}/impl/ex",
       extras: ["README.md"]
     ]

@@ -16,7 +16,7 @@ defmodule UXID.MixProject do
     {:ecto_ulid, "~> 0.2", only: :dev}
   ]
 
-  def application(), do: []
+  def application(), do: [extra_applications: [:crypto]]
 
   def project() do
     [

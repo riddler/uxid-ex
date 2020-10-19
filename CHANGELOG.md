@@ -1,3 +1,7 @@
+### 0.0.5 / 2020-10-19
+
+* Adds Ecto.UXID
+
 ### 0.0.4 / 2020-10-19
 
 * Includes Erlang crypto application

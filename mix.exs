@@ -9,11 +9,14 @@ defmodule UXID.MixProject do
   @deps [
     # Required
 
+    # Optional
+    {:ecto, "~> 3.5", optional: true},
+
     # Development, Documentation, Testing, ...
     {:ex_doc, "~> 0.22", only: :dev},
     {:benchee, "~> 1.0", only: :dev},
     {:benchee_html, "~> 1.0", only: :dev},
-    {:ecto_ulid, "~> 0.2", only: :dev}
+    {:ecto_ulid, "~> 0.2", only: :dev, optional: true}
   ]
 
   def application(), do: [extra_applications: [:crypto]]
@@ -33,6 +36,9 @@ defmodule UXID.MixProject do
       elixirc_paths: elixirc_paths(Mix.env()),
       preferred_cli_env: preferred_cli_env(),
       test_coverage: [tool: ExCoveralls],
+
+      # Exclude optional dependencies
+      xref: [exclude: Ecto.ParameterizedType],
 
       # Docs
       source_url: "https://github.com/riddler/uxid",

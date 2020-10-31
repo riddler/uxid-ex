@@ -4,7 +4,7 @@ defmodule UXID.MixProject do
   @name "UXID"
   @app :uxid
   @description "User eXperience focused IDentifiers"
-  @version "0.0.5"
+  @version "0.0.6"
 
   @deps [
     # Required
@@ -13,7 +13,7 @@ defmodule UXID.MixProject do
     {:ecto, "~> 3.5", optional: true},
 
     # Development, Documentation, Testing, ...
-    {:ex_doc, "~> 0.22", only: :dev},
+    {:ex_doc, "~> 0.23", only: :dev},
     {:benchee, "~> 1.0", only: :dev},
     {:benchee_html, "~> 1.0", only: :dev},
     {:ecto_ulid, "~> 0.2", only: :dev, optional: true}

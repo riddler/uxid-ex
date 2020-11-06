@@ -3,9 +3,7 @@
 UXIDs are identifiers which:
 
 * Describe the resource (aid in debugging and investigation)
-* Use Crockford encoding (work well with humans)
-  * Compact - hard to manipulate or read long strings of characters
-  * Prononounceable - easily and accurately transmit characters to another human using a telephone
+* Prononounceable - easily and accurately transmit characters to another human using a telephone
 * Work well with copy and paste (double clicking selects the entire ID)
 * Can be shortened for low cardinality resources
 * Are very unlikely to collide (more likely with less randomness)

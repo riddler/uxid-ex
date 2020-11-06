@@ -1,3 +1,8 @@
+## 0.1.0 / 2020-11-06
+
+* Updates description and README
+* Has enough usable functionality and documentation for 0.1.0!
+
 ### 0.0.6 / 2020-10-30
 
 * Marks Ecto as optional dependency and excludes xref

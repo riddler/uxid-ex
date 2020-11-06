@@ -4,7 +4,7 @@ defmodule UXID.MixProject do
   @name "UXID"
   @app :uxid
   @description "User eXperience focused IDentifiers. Generates IDs like: cus_01EPEY1JMKXVBT and txn_01EPEY2P06TR1RTV07XA82ZGJJ"
-  @version "0.0.6"
+  @version "0.1.0"
 
   @deps [
     # Required

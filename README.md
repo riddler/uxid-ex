@@ -72,5 +72,5 @@ Once published, the docs can be found at [https://hexdocs.pm/uxid][hexdocs_proje
 
 <!-- BADGES -->
 [badge_license_url]: https://img.shields.io/badge/license-MIT-brightgreen.svg?cacheSeconds=3600?style=flat-square
-[badge_downloads_url]: https://img.shields.io/hexpm/dt/uxid?style=flat-square&logo=elixir
-[badge_version_url]: https://img.shields.io/hexpm/v/uxid?style=flat-square&logo=elixir
+[badge_downloads_url]: https://img.shields.io/hexpm/dt/uxid?style=flat&logo=elixir
+[badge_version_url]: https://img.shields.io/hexpm/v/uxid?style=flat&logo=elixir

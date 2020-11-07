@@ -1,3 +1,7 @@
+### 0.1.2 / 2020-11-07
+
+* Updates description and README
+
 ### 0.1.1 / 2020-11-07
 
 * Updates description and README

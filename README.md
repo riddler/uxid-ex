@@ -1,8 +1,8 @@
 # UXID
 
-[![MIT License][badge_license_url]][mit_license_url]
-[![hex.pm][badge_version_url]][hex_project_url]
-[![hex.pm][badge_downloads_url]][hex_project_url]
+![MIT License][badge_license_url]
+![Hex Version][badge_version_url]
+![Hex Downloads][badge_downloads_url]
 
 UXIDs are identifiers which:
 

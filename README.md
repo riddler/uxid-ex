@@ -1,5 +1,9 @@
 # UXID
 
+[![MIT License][badge_license_url]][mit_license_url]
+[![hex.pm][badge_version_url]][hex_project_url]
+[![hex.pm][badge_downloads_url]][hex_project_url]
+
 UXIDs are identifiers which:
 
 * Describe the resource (aid in debugging and investigation)
@@ -16,6 +20,8 @@ Many of the concepts of Stripe IDs have been used in this library.
 
 ## Usage
 
+#### Generating UXIDs
+
 ```elixir
 # No options generates a basic ULID
 UXID.generate! # "01EMDGJF0DQXQJ8FM78XE97Y3H"
@@ -25,6 +31,22 @@ UXID.generate! prefix: "cus" # "cus_01EMDGJF0DQXQJ8FM78XE97Y3H"
 
 # The amount of randomness can be decreased for smaller cardinality resources
 UXID.generate! prefix: "cus", rand_size: 4 # "cus_01EMDGN5QAGPWSKN2"
+```
+
+#### Ecto
+
+UXIDs can be used as Ecto fields including primary keys.
+
+```elixir
+defmodule YourApp.User do
+  use Ecto.Schema
+
+  @primary_key {:id, Ecto.UXID, autogenerate: true, prefix: "usr", rand_size: 5}
+  schema "users" do
+    field :generated_uxid, Ecto.UXID, autogenerate: true, prefix: "apikey"
+    field :api_secret, Ecto.UXID, prefix: "apisecret"
+  end
+end
 ```
 
 ## Installation
@@ -40,4 +62,15 @@ end
 ```
 
 Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_doc) and published on [HexDocs](https://hexdocs.pm).
-Once published, the docs can be found at [https://hexdocs.pm/uxid](https://hexdocs.pm/uxid).
+Once published, the docs can be found at [https://hexdocs.pm/uxid][hexdocs_project_url].
+
+
+<!-- LINKS -->
+[hex_project_url]: https://hex.pm/packages/uxid
+[hexdocs_project_url]: https://hexdocs.pm/uxid
+[mit_license_url]: http://opensource.org/licenses/MIT
+
+<!-- BADGES -->
+[badge_license_url]: https://img.shields.io/badge/license-MIT-brightgreen.svg?cacheSeconds=3600?style=flat-square
+[badge_downloads_url]: https://img.shields.io/hexpm/dt/uxid?style=flat-square&logo=elixir
+[badge_version_url]: https://img.shields.io/hexpm/v/uxid?style=flat-square&logo=elixir

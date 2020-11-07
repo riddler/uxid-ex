@@ -3,7 +3,7 @@ defmodule UXID.MixProject do
 
   @name "UXID"
   @app :uxid
-  @description "User eXperience focused IDentifiers. Generates IDs like: cus_01EPEY1JMKXVBT and txn_01EPEY2P06TR1RTV07XA82ZGJJ"
+  @description "User eXperience focused IDentifiers. Generates IDs like: cus_01EPEY1JMKXVBT and txn_01EPEY2P06TR1RTV07XA82ZGJJ. Includes Ecto type."
   @version "0.1.0"
 
   @deps [
@@ -28,7 +28,7 @@ defmodule UXID.MixProject do
       name: @name,
       description: @description,
       version: @version,
-      elixir: "~> 1.10",
+      elixir: "~> 1.8",
       start_permanent: Mix.env() == :prod,
       package: package(),
       deps: @deps,

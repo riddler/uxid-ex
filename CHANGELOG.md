@@ -1,4 +1,4 @@
-### Upcoming
+### 0.1.1 / 2020-11-07
 
 * Updates description and README
 

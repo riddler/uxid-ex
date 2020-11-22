@@ -1,3 +1,9 @@
+### Upcoming
+
+* Deprecates Ecto.UXID
+* Removes Decoder and CrockfordBase32
+* Adds size option (T-Shirt sizes)
+
 ### 0.1.2 / 2020-11-07
 
 * Updates description and README

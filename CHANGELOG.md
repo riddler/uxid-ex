@@ -1,4 +1,4 @@
-### Upcoming
+## 0.2.0 / 2020-11-22
 
 * Deprecates Ecto.UXID
 * Removes Decoder and CrockfordBase32

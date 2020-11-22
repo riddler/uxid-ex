@@ -1,7 +1,6 @@
 Benchee.run(
   %{
-    "UXID.generate (10)" => fn -> UXID.generate(size: 10) end,
-    "UXID.generate (0)" => fn -> UXID.generate(size: 0) end,
+    "UXID.generate" => fn -> UXID.generate() end,
     "Ecto.ULID.generate" => fn -> Ecto.ULID.generate() end
   },
   memory_time: 2,

@@ -15,10 +15,21 @@ defmodule UXID do
   Many of the concepts of Stripe IDs have been used in this library.
   """
 
-  defstruct [:encoded, :prefix, :rand_size, :rand, :rand_encoded, :string, :time, :time_encoded]
+  defstruct [
+    :encoded,
+    :prefix,
+    :rand_size,
+    :rand,
+    :rand_encoded,
+    :size,
+    :string,
+    :time,
+    :time_encoded
+  ]
 
   @typedoc "Options for generating a UXID"
-  @type option :: {:time, integer()} | {:rand_size, integer()} | {:prefix, String.t()}
+  @type option ::
+          {:time, integer()} | {:size, atom()} | {:rand_size, integer()} | {:prefix, String.t()}
   @type options :: [option()]
 
   @typedoc "A UXID represented as a String"
@@ -34,6 +45,7 @@ defmodule UXID do
           rand_size: pos_integer() | nil,
           rand: binary() | nil,
           rand_encoded: String.t() | nil,
+          size: atom() | nil,
           string: String.t() | nil,
           time: pos_integer() | nil,
           time_encoded: String.t() | nil
@@ -73,12 +85,14 @@ defmodule UXID do
   """
   def new(opts \\ []) do
     timestamp = Keyword.get(opts, :time, System.system_time(:millisecond))
-    rand_size = Keyword.get(opts, :rand_size, 10)
+    rand_size = Keyword.get(opts, :rand_size)
+    size = Keyword.get(opts, :size)
     prefix = Keyword.get(opts, :prefix)
 
     %__MODULE__{
       prefix: prefix,
       rand_size: rand_size,
+      size: size,
       time: timestamp
     }
     |> Encoder.process()

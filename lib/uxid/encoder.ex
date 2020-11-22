@@ -9,7 +9,9 @@ defmodule UXID.Encoder do
   def process(%UXID{} = struct) do
     uxid =
       struct
-      |> ensure_params()
+      |> ensure_time()
+      |> ensure_rand_size()
+      |> ensure_rand()
       |> encode()
       |> prefix()
 
@@ -18,16 +20,51 @@ defmodule UXID.Encoder do
 
   # === Private helpers
 
-  defp ensure_params(%UXID{time: nil} = uxid),
-    do: ensure_params(%{uxid | time: System.system_time(:millisecond)})
+  defp ensure_time(%UXID{time: nil} = uxid),
+    do: %{uxid | time: System.system_time(:millisecond)}
 
-  defp ensure_params(%UXID{rand_size: nil} = uxid),
-    do: ensure_params(%{uxid | rand_size: @default_rand_size})
+  defp ensure_time(uxid),
+    do: uxid
 
-  defp ensure_params(%UXID{rand_size: rand_size, rand: nil} = uxid),
-    do: ensure_params(%{uxid | rand: :crypto.strong_rand_bytes(rand_size)})
+  defp ensure_rand_size(%UXID{rand_size: nil, size: :xs} = uxid),
+    do: %{uxid | rand_size: 0}
 
-  defp ensure_params(uxid), do: uxid
+  defp ensure_rand_size(%UXID{rand_size: nil, size: :xsmall} = uxid),
+    do: %{uxid | rand_size: 0}
+
+  defp ensure_rand_size(%UXID{rand_size: nil, size: :s} = uxid),
+    do: %{uxid | rand_size: 2}
+
+  defp ensure_rand_size(%UXID{rand_size: nil, size: :small} = uxid),
+    do: %{uxid | rand_size: 2}
+
+  defp ensure_rand_size(%UXID{rand_size: nil, size: :m} = uxid),
+    do: %{uxid | rand_size: 5}
+
+  defp ensure_rand_size(%UXID{rand_size: nil, size: :medium} = uxid),
+    do: %{uxid | rand_size: 5}
+
+  defp ensure_rand_size(%UXID{rand_size: nil, size: :l} = uxid),
+    do: %{uxid | rand_size: 7}
+
+  defp ensure_rand_size(%UXID{rand_size: nil, size: :large} = uxid),
+    do: %{uxid | rand_size: 7}
+
+  defp ensure_rand_size(%UXID{rand_size: nil, size: :xl} = uxid),
+    do: %{uxid | rand_size: 10}
+
+  defp ensure_rand_size(%UXID{rand_size: nil, size: :xlarge} = uxid),
+    do: %{uxid | rand_size: 10}
+
+  defp ensure_rand_size(%UXID{rand_size: nil} = uxid),
+    do: %{uxid | rand_size: @default_rand_size}
+
+  defp ensure_rand_size(uxid), do: uxid
+
+  defp ensure_rand(%UXID{rand_size: rand_size, rand: nil} = uxid),
+    do: %{uxid | rand: :crypto.strong_rand_bytes(rand_size)}
+
+  defp ensure_rand(uxid), do: uxid
 
   defp encode(%UXID{} = input) do
     uxid =

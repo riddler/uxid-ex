@@ -3,7 +3,7 @@ defmodule UXID.MixProject do
 
   @name "UXID"
   @app :uxid
-  @description "Generates IDs like: cus_01EPEY1JMKXVBT and txn_01EPEY2P06TR1RTV07XA82ZGJJ. Includes Ecto type."
+  @description "Generates identifiers like: cus_01EPEY1JMKXVBT and txn_01EPEY2P06TR1RTV07XA82ZGJJ. Includes Ecto type."
   @version "0.2.0"
 
   @deps [

@@ -1,3 +1,7 @@
+### 0.2.1 / 2020-11-24
+
+* Updates Mix project description
+
 ## 0.2.0 / 2020-11-22
 
 * Deprecates Ecto.UXID

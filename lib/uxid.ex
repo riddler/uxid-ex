@@ -117,8 +117,13 @@ defmodule UXID do
     @doc """
     Generates a loaded version of the UXID.
     """
-    def autogenerate(opts),
-      do: __MODULE__.generate!(prefix: opts.prefix, rand_size: opts.rand_size)
+    def autogenerate(opts) do
+      prefix = Map.get(opts, :prefix)
+      size = Map.get(opts, :size)
+      rand_size = Map.get(opts, :rand_size)
+
+      __MODULE__.generate!(prefix: prefix, size: size, rand_size: rand_size)
+    end
 
     @impl Ecto.ParameterizedType
     @doc """

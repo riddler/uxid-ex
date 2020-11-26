@@ -1,3 +1,11 @@
+### Upcoming
+
+* (None yet)
+
+### 0.2.2 / 2020-11-26
+
+* Passes options cleanly down for autogenerate
+
 ### 0.2.1 / 2020-11-24
 
 * Updates Mix project description

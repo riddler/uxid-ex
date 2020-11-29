@@ -1,5 +1,9 @@
 ### Upcoming
 
+* (None yet)
+
+### 0.2.3 / 2020-11-29
+
 * Uses new project URL
 
 ### 0.2.2 / 2020-11-26

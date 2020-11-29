@@ -41,7 +41,7 @@ defmodule UXID.MixProject do
       xref: [exclude: Ecto.ParameterizedType],
 
       # Docs
-      source_url: "https://github.com/riddler/uxid",
+      source_url: "https://github.com/riddler/uxid-ex",
       docs: docs()
     ]
   end
@@ -61,8 +61,7 @@ defmodule UXID.MixProject do
   defp docs do
     [
       main: "readme",
-      source_url: "https://github.com/riddler/uxid",
-      source_ref: "ex-v#{@version}/impl/ex",
+      source_url: "https://github.com/riddler/uxid-ex",
       extras: ["README.md"]
     ]
   end
@@ -72,7 +71,7 @@ defmodule UXID.MixProject do
       licenses: ["MIT"],
       links: %{
         "UXID Project" => "https://github.com/riddler/uxid",
-        "GitHub" => "https://github.com/riddler/uxid/tree/master/impl/ex"
+        "GitHub" => "https://github.com/riddler/uxid-ex"
       }
     ]
   end

@@ -61,6 +61,7 @@ defmodule UXID do
         }
 
   alias UXID.Encoder
+  alias UXID.Decoder
 
   @spec generate(opts :: options()) :: {:ok, uxid_string()} | {:error, error_string()}
   @doc """
@@ -110,14 +111,32 @@ defmodule UXID do
 
   def encode_case(), do: Application.get_env(:uxid, :case, :lower)
 
+  @spec decode(uxid_string) :: {:ok, %__MODULE__{}} | {:error, error_string}
+  def decode(uxid) do
+    %__MODULE__{
+      string: uxid
+    }
+    |> Decoder.process()
+    |> case do
+      {:ok, %__MODULE__{} = struct} ->
+        {:ok, struct}
+
+      {:error, error} ->
+        {:error, error}
+
+      :error ->
+        {:error, "Unknown error occurred"}
+    end
+  end
+
   # Define additional functions for custom Ecto type if Ecto is loaded
   if Code.ensure_loaded?(Ecto) do
     use Ecto.ParameterizedType
 
-    @impl Ecto.ParameterizedType
     @doc """
     Generates a loaded version of the UXID.
     """
+    @impl Ecto.ParameterizedType
     def autogenerate(opts) do
       case = Map.get(opts, :case, encode_case())
       prefix = Map.get(opts, :prefix)
@@ -127,37 +146,40 @@ defmodule UXID do
       __MODULE__.generate!(case: case, prefix: prefix, size: size, rand_size: rand_size)
     end
 
-    @impl Ecto.ParameterizedType
     @doc """
     Returns the underlying schema type for a UXID.
     """
+    @impl Ecto.ParameterizedType
     def type(_opts), do: :string
 
-    @impl Ecto.ParameterizedType
     @doc """
     Converts the options specified in the field macro into parameters to be used in other callbacks.
     """
+    @impl Ecto.ParameterizedType
     def init(opts) do
       # validate_opts(opts)
       Enum.into(opts, %{})
     end
 
-    @impl Ecto.ParameterizedType
     @doc """
     Casts the given input to the UXID ParameterizedType with the given parameters.
     """
-    def cast(data, _params), do: {:ok, data}
+    @impl Ecto.ParameterizedType
+    def cast(data, _params) do
+      cast_binary(data)
+    end
+
+    defp cast_binary(nil), do: {:ok, nil}
+    defp cast_binary(term) when is_binary(term), do: {:ok, term}
+    defp cast_binary(_), do: :error
 
     @impl Ecto.ParameterizedType
-    @doc """
-    Loads the given term into a UXID.
-    """
     def load(data, _loader, _params), do: {:ok, data}
 
-    @impl Ecto.ParameterizedType
     @doc """
     Dumps the given term into an Ecto native type.
     """
+    @impl Ecto.ParameterizedType
     def dump(data, _dumper, _params), do: {:ok, data}
   end
 end

@@ -10,7 +10,7 @@ defmodule UXID.MixProject do
     # Required
 
     # Optional
-    {:ecto, "~> 3.5", optional: true},
+    {:ecto, "~> 3.12", optional: true},
 
     # Development, Documentation, Testing, ...
     {:ex_doc, "~> 0.23", only: :dev},

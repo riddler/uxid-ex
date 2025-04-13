@@ -64,8 +64,8 @@ defmodule UXID do
       {:ok, %__MODULE__{string: string}} ->
         {:ok, string}
 
-      {:error, error} ->
-        {:error, error}
+      _other ->
+        {:error, "Unknown error"}
     end
   end
 
@@ -97,16 +97,6 @@ defmodule UXID do
       time: timestamp
     }
     |> Encoder.process()
-    |> case do
-      {:ok, %__MODULE__{string: string} = struct} when not is_nil(string) ->
-        {:ok, struct}
-
-      {:error, error} ->
-        {:error, error}
-
-      :error ->
-        {:error, "Unknown error occurred"}
-    end
   end
 
   # Define additional functions for custom Ecto type if Ecto is loaded

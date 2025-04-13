@@ -4,13 +4,13 @@ defmodule UXID.MixProject do
   @name "UXID"
   @app :uxid
   @description "Generates identifiers like: cus_01EPEY1JMKXVBT and txn_01EPEY2P06TR1RTV07XA82ZGJJ. Includes Ecto type."
-  @version "0.2.3"
+  @version "1.0.0"
 
   @deps [
     # Required
 
     # Optional
-    {:ecto, "~> 3.5", optional: true},
+    {:ecto, "~> 3.12", optional: true},
 
     # Development, Documentation, Testing, ...
     {:ex_doc, "~> 0.23", only: :dev},

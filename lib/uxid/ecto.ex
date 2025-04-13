@@ -16,7 +16,7 @@ if Code.ensure_loaded?(Ecto) do
     end
 
     def init(opts) do
-      Logger.warn(
+      Logger.warning(
         "Ecto.UXID is deprecated and will be removed in a future version. Please use UXID istead."
       )
 
@@ -36,7 +36,7 @@ if Code.ensure_loaded?(Ecto) do
     end
 
     def autogenerate(opts) do
-      Logger.warn(
+      Logger.warning(
         "Ecto.UXID is deprecated and will be removed in a future version. Please use UXID istead."
       )
 

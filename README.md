@@ -32,6 +32,9 @@ UXID.generate! prefix: "cus" # "cus_01EMDGJF0DQXQJ8FM78XE97Y3H"
 # The amount of randomness can be decreased for smaller cardinality resources
 # T-Shirt sizes can be used (xs, s, m, l, xl) or (xsmall, small, medium, large, xlarge)
 UXID.generate! prefix: "cus", size: :small # "cus_01EQRH884AQYY1"
+
+# Lowercase can be used for easier manual entry and searching
+UXID.generate! case: :lower # "01jsvh4vk3e4bgx19wv8yg8r0z"
 ```
 
 ### Ecto

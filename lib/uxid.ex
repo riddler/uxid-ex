@@ -108,7 +108,7 @@ defmodule UXID do
     |> Encoder.process()
   end
 
-  def encode_case(), do: Application.get_env(:uxid, :case, :upper)
+  def encode_case(), do: Application.get_env(:uxid, :case, :lower)
 
   # Define additional functions for custom Ecto type if Ecto is loaded
   if Code.ensure_loaded?(Ecto) do

@@ -1,8 +1,9 @@
 # UXID
 
-![MIT License][badge_license_url]
-![Hex Version][badge_version_url]
-![Hex Downloads][badge_downloads_url]
+[![Build Status](https://img.shields.io/travis/username/repo.svg?style=flat)](https://travis-ci.org/username/repo)
+[![MIT License][badge_license_url]](LICENSE)
+[![Hex Version][badge_version_url]](https://hex.pm/packages/uxid)
+[![Hex Downloads][badge_downloads_url]](https://hex.pm/packages/uxid)
 
 **U**ser e**X**perience focused **ID**entifiers (UXIDs) are identifiers which:
 

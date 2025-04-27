@@ -1,6 +1,11 @@
 ### Upcoming
 
-* (None yet)
+* Adds lowercase config and functionality
+* Makes lowercase the default
+
+### 1.0.0 / 2025-04-13
+
+* Fixes compiler warnings
 
 ### 0.2.3 / 2020-11-29
 

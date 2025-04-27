@@ -1,8 +1,8 @@
 # UXID
 
-![MIT License][badge_license_url]
-![Hex Version][badge_version_url]
-![Hex Downloads][badge_downloads_url]
+[![MIT License][badge_license_url]](LICENSE)
+[![Hex Version][badge_version_url]](https://hex.pm/packages/uxid)
+[![Hex Downloads][badge_downloads_url]](https://hex.pm/packages/uxid)
 
 **U**ser e**X**perience focused **ID**entifiers (UXIDs) are identifiers which:
 
@@ -24,14 +24,17 @@ Many of the concepts of Stripe IDs have been used in this library.
 
 ```elixir
 # No options generates a basic ULID
-UXID.generate! # "01EMDGJF0DQXQJ8FM78XE97Y3H"
+UXID.generate! # "01emdgjf0dqxqj8fm78xe97y3h"
 
 # A prefix can be provided
-UXID.generate! prefix: "cus" # "cus_01EMDGJF0DQXQJ8FM78XE97Y3H"
+UXID.generate! prefix: "cus" # "cus_01emdgjf0dqxqj8fm78xe97y3h"
 
 # The amount of randomness can be decreased for smaller cardinality resources
 # T-Shirt sizes can be used (xs, s, m, l, xl) or (xsmall, small, medium, large, xlarge)
-UXID.generate! prefix: "cus", size: :small # "cus_01EQRH884AQYY1"
+UXID.generate! prefix: "cus", size: :small # "cus_01eqrh884aqyy1"
+
+# Uppercase can be used to match previous UXID versions
+UXID.generate! case: :upper # "01EMDGJF0DQXQJ8FM78XE97Y3H"
 ```
 
 ### Ecto

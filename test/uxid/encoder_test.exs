@@ -3,10 +3,30 @@ defmodule UXID.EncoderTest do
 
   alias UXID.Encoder
 
+  describe "process/1 with blank UXID using upper case" do
+    test "app config returns a lowercase 26 character string (ULID)" do
+      Application.put_env(:uxid, :case, :upper)
+      on_exit fn ->
+        Application.delete_env(:uxid, :case)
+      end
+
+      {:ok, %UXID{string: uxid}} = Encoder.process(%UXID{})
+      assert String.length(uxid) == 26
+      refute uxid == String.downcase(uxid)
+    end
+
+    test "call config returns a lowercase 26 character string (ULID)" do
+      {:ok, %UXID{string: uxid}} = Encoder.process(%UXID{case: :upper})
+      assert String.length(uxid) == 26
+      refute uxid == String.downcase(uxid)
+    end
+  end
+
   describe "process/1 with a blank UXID" do
     test "returns a 26 character string (ULID)" do
       {:ok, %UXID{string: uxid}} = Encoder.process(%UXID{})
       assert String.length(uxid) == 26
+      assert uxid == String.downcase(uxid)
     end
   end
 

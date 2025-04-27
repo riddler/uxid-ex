@@ -18,6 +18,7 @@ defmodule UXID do
   """
 
   defstruct [
+    :case,
     :encoded,
     :prefix,
     :rand_size,
@@ -31,7 +32,12 @@ defmodule UXID do
 
   @typedoc "Options for generating a UXID"
   @type option ::
-          {:time, integer()} | {:size, atom()} | {:rand_size, integer()} | {:prefix, String.t()}
+          {:case, atom()} |
+          {:time, integer()} |
+          {:size, atom()} |
+          {:rand_size, integer()} |
+          {:prefix, String.t()}
+
   @type options :: [option()]
 
   @typedoc "A UXID represented as a String"
@@ -42,6 +48,7 @@ defmodule UXID do
 
   @typedoc "A UXID struct"
   @type t() :: %__MODULE__{
+          case: atom() | nil,
           encoded: String.t() | nil,
           prefix: String.t() | nil,
           rand_size: pos_integer() | nil,
@@ -85,12 +92,14 @@ defmodule UXID do
   Returns a new UXID struct. This is useful for development.
   """
   def new(opts \\ []) do
-    timestamp = Keyword.get(opts, :time, System.system_time(:millisecond))
+    case = Keyword.get(opts, :case, encode_case())
+    prefix = Keyword.get(opts, :prefix)
     rand_size = Keyword.get(opts, :rand_size)
     size = Keyword.get(opts, :size)
-    prefix = Keyword.get(opts, :prefix)
+    timestamp = Keyword.get(opts, :time, System.system_time(:millisecond))
 
     %__MODULE__{
+      case: case,
       prefix: prefix,
       rand_size: rand_size,
       size: size,
@@ -98,6 +107,8 @@ defmodule UXID do
     }
     |> Encoder.process()
   end
+
+  def encode_case(), do: Application.get_env(:uxid, :case, :lower)
 
   # Define additional functions for custom Ecto type if Ecto is loaded
   if Code.ensure_loaded?(Ecto) do
@@ -108,11 +119,12 @@ defmodule UXID do
     Generates a loaded version of the UXID.
     """
     def autogenerate(opts) do
+      case = Map.get(opts, :case, encode_case())
       prefix = Map.get(opts, :prefix)
       size = Map.get(opts, :size)
       rand_size = Map.get(opts, :rand_size)
 
-      __MODULE__.generate!(prefix: prefix, size: size, rand_size: rand_size)
+      __MODULE__.generate!(case: case, prefix: prefix, size: size, rand_size: rand_size)
     end
 
     @impl Ecto.ParameterizedType

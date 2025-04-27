@@ -1,7 +1,12 @@
 ### Upcoming
 
-* Adds lowercase config and functionality
+* (None yet)
+
+### 2.0.0 / 2025-04-27
+
+* Adds case config and functionality
 * Makes lowercase the default
+* Removes deprecated Ecto.UXID
 
 ### 1.0.0 / 2025-04-13
 

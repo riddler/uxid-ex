@@ -3,8 +3,8 @@ defmodule UXID.MixProject do
 
   @name "UXID"
   @app :uxid
-  @description "Generates identifiers like: cus_01epey1jmkxvbt and txn_01epey2p06tr1rtv07xa82zgjj. Includes Ecto type."
-  @version "2.0.0"
+  @description "Generates UX focused IDs like: usr_01epey2p06tr1rtv07xa82zgjj (K-sortable with prefix - like Stripe)"
+  @version "2.0.1"
 
   @deps [
     # Required

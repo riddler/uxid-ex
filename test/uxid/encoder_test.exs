@@ -85,5 +85,10 @@ defmodule UXID.EncoderTest do
       {:ok, %UXID{string: uxid}} = Encoder.process(%UXID{rand_size: 0})
       assert String.length(uxid) == 10
     end
+
+    test "returns a string delimited by a hythem" do
+      {:ok, %UXID{string: uxid}} = Encoder.process(%UXID{prefix: "X", delimiter: "-"})
+      assert "X-" <> _uxid = uxid
+    end
   end
 end

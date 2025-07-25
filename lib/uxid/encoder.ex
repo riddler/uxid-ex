@@ -4,7 +4,6 @@ defmodule UXID.Encoder do
   """
 
   @default_rand_size 10
-  @delimiter "_"
 
   def process(%UXID{} = struct) do
     uxid =
@@ -319,8 +318,8 @@ defmodule UXID.Encoder do
 
   defp prefix(%UXID{prefix: nil, encoded: encoded} = uxid), do: %{uxid | string: encoded}
 
-  defp prefix(%UXID{prefix: prefix, encoded: encoded} = uxid),
-    do: %{uxid | string: prefix <> @delimiter <> encoded}
+  defp prefix(%UXID{prefix: prefix, encoded: encoded, delimiter: delimiter} = uxid),
+    do: %{uxid | string: prefix <> delimiter <> encoded}
 
   # Encode functions
   @compile {:inline, e: 1}

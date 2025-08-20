@@ -1,3 +1,4 @@
-ruby 2.7.1
-erlang 23.0
-elixir 1.10.3-otp-23
+ruby 3.2.2
+elixir 1.18.3-otp-27
+erlang 27.3
+

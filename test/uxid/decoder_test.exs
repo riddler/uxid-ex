@@ -1,4 +1,4 @@
-defmodule UXID.DebcoderTest do
+defmodule UXID.DecoderTest do
   use ExUnit.Case, async: true
 
   alias UXID.Decoder
@@ -110,6 +110,57 @@ defmodule UXID.DebcoderTest do
     end
   end
 
+  describe "case support" do
+    test "decodes uppercase UXIDs correctly" do
+      {:ok, generated_uxid} = UXID.new(case: :upper)
+      {:ok, decoded_uxid} = Decoder.process(%UXID{string: generated_uxid.string})
+
+      assert decoded_uxid.time == generated_uxid.time
+      assert decoded_uxid.time_encoded == generated_uxid.time_encoded
+      assert decoded_uxid.encoded == generated_uxid.encoded
+      assert String.match?(generated_uxid.string, ~r/[A-Z]/)
+    end
+
+    test "decodes lowercase UXIDs correctly" do
+      {:ok, generated_uxid} = UXID.new(case: :lower)
+      {:ok, decoded_uxid} = Decoder.process(%UXID{string: generated_uxid.string})
+
+      assert decoded_uxid.time == generated_uxid.time
+      assert decoded_uxid.time_encoded == generated_uxid.time_encoded
+      assert decoded_uxid.encoded == generated_uxid.encoded
+      assert String.match?(generated_uxid.string, ~r/[a-z]/)
+    end
+
+    test "decodes mixed case UXIDs (uppercase time, lowercase rand)" do
+      # Create a UXID with mixed case manually
+      {:ok, upper_uxid} = UXID.new(case: :upper)
+      {:ok, lower_uxid} = UXID.new(case: :lower)
+      
+      # Mix: uppercase time_encoded + lowercase rand_encoded  
+      mixed_encoded = upper_uxid.time_encoded <> lower_uxid.rand_encoded
+      mixed_string = if upper_uxid.prefix do
+        upper_uxid.prefix <> "_" <> mixed_encoded
+      else
+        mixed_encoded
+      end
+
+      {:ok, decoded_uxid} = Decoder.process(%UXID{string: mixed_string})
+
+      # Should successfully decode the time portion
+      assert is_integer(decoded_uxid.time)
+      assert String.length(decoded_uxid.time_encoded) == 10
+    end
+
+    test "d/1 function handles both cases for same character value" do
+      # Test that uppercase and lowercase versions return same numeric value
+      assert Decoder.d(?A) == Decoder.d(?a)
+      assert Decoder.d(?B) == Decoder.d(?b) 
+      assert Decoder.d(?Z) == Decoder.d(?z)
+      assert Decoder.d(?H) == Decoder.d(?h)
+      assert Decoder.d(?K) == Decoder.d(?k)
+    end
+  end
+
   describe "stress tests" do
     test "All generated IDs have the same time encoded length" do
       Enum.all?(0..2_000_000, fn _ ->
@@ -117,6 +168,20 @@ defmodule UXID.DebcoderTest do
         {:ok, uxid} = UXID.new(time: timestamp)
         String.length(uxid.time_encoded) == 10
       end)
+    end
+
+    test "Both case formats can be decoded consistently" do
+      timestamp = System.system_time(:millisecond)
+      
+      {:ok, upper_uxid} = UXID.new(time: timestamp, case: :upper, prefix: "test")
+      {:ok, lower_uxid} = UXID.new(time: timestamp, case: :lower, prefix: "test")
+      
+      {:ok, decoded_upper} = Decoder.process(%UXID{string: upper_uxid.string})
+      {:ok, decoded_lower} = Decoder.process(%UXID{string: lower_uxid.string})
+      
+      # Both should decode to the same timestamp
+      assert decoded_upper.time == decoded_lower.time
+      assert decoded_upper.time == timestamp
     end
   end
 end

@@ -120,6 +120,7 @@ defmodule UXID do
   end
 
   # Define additional functions for custom Ecto type if Ecto is loaded
+  # Note: For typed_ecto_schema compatibility, use UXID.EctoType instead
   if Code.ensure_loaded?(Ecto) do
     use Ecto.ParameterizedType
 

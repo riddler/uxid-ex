@@ -8,6 +8,40 @@ defmodule UXID.EctoTypeTest do
 
       assert String.starts_with?(uxid, "px")
     end
+
+    test "generates a UXID with case parameter" do
+      opts = %{prefix: "px", case: :upper}
+      uxid = UXID.EctoType.autogenerate(opts)
+
+      assert String.starts_with?(uxid, "px_")
+      # Extract the encoded part after prefix and underscore
+      encoded_part = String.replace_leading(uxid, "px_", "")
+      # Should contain uppercase letters (not lowercase)
+      assert encoded_part =~ ~r/[A-Z]/
+      refute encoded_part =~ ~r/[a-z]/
+    end
+
+    test "generates a UXID with lowercase case parameter" do
+      opts = %{prefix: "px", case: :lower}
+      uxid = UXID.EctoType.autogenerate(opts)
+
+      assert String.starts_with?(uxid, "px_")
+      # Extract the encoded part after prefix and underscore
+      encoded_part = String.replace_leading(uxid, "px_", "")
+      # Should contain lowercase letters (not uppercase)
+      assert encoded_part =~ ~r/[a-z]/
+      refute encoded_part =~ ~r/[A-Z]/
+    end
+
+    test "defaults to configured case when not specified" do
+      opts = %{prefix: "px"}
+      uxid = UXID.EctoType.autogenerate(opts)
+
+      assert String.starts_with?(uxid, "px_")
+      # Should use the default case (lowercase in v2.0+)
+      encoded_part = String.replace_leading(uxid, "px_", "")
+      assert encoded_part =~ ~r/[a-z]/
+    end
   end
 
   describe "cast/2" do

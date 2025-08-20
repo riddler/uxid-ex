@@ -1,5 +1,21 @@
 if Code.ensure_loaded?(Ecto) do
   defmodule UXID.EctoType do
+    @moduledoc """
+    Ecto ParameterizedType for UXID with typed_ecto_schema compatibility.
+    
+    Use this module instead of the main UXID module when:
+    - Using `typed_ecto_schema` library
+    - Need proper Dialyzer type inference (`String.t()` instead of `UXID.t()`)
+    
+    Example:
+        defmodule MyApp.User do
+          use TypedEctoSchema
+          
+          typed_schema "users" do
+            field :id, UXID.EctoType, primary_key: true, autogenerate: true, prefix: "usr"
+          end
+        end
+    """
     use Ecto.ParameterizedType
 
     @type t :: String.t()
@@ -9,11 +25,12 @@ if Code.ensure_loaded?(Ecto) do
     """
     @impl Ecto.ParameterizedType
     def autogenerate(opts) do
+      case = Map.get(opts, :case, UXID.encode_case())
       prefix = Map.get(opts, :prefix)
       size = Map.get(opts, :size)
       rand_size = Map.get(opts, :rand_size)
 
-      UXID.generate!(prefix: prefix, size: size, rand_size: rand_size)
+      UXID.generate!(case: case, prefix: prefix, size: size, rand_size: rand_size)
     end
 
     @doc """

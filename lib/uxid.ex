@@ -117,16 +117,6 @@ defmodule UXID do
       string: uxid
     }
     |> Decoder.process()
-    |> case do
-      {:ok, %__MODULE__{} = struct} ->
-        {:ok, struct}
-
-      {:error, error} ->
-        {:error, error}
-
-      :error ->
-        {:error, "Unknown error occurred"}
-    end
   end
 
   # Define additional functions for custom Ecto type if Ecto is loaded

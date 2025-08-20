@@ -84,6 +84,7 @@ defmodule UXID.Decoder do
   def d(?7), do: 7
   def d(?8), do: 8
   def d(?9), do: 9
+  # Uppercase
   def d(?A), do: 10
   def d(?B), do: 11
   def d(?C), do: 12
@@ -106,4 +107,27 @@ defmodule UXID.Decoder do
   def d(?X), do: 29
   def d(?Y), do: 30
   def d(?Z), do: 31
+  # Lowercase
+  def d(?a), do: 10
+  def d(?b), do: 11
+  def d(?c), do: 12
+  def d(?d), do: 13
+  def d(?e), do: 14
+  def d(?f), do: 15
+  def d(?g), do: 16
+  def d(?h), do: 17
+  def d(?j), do: 18
+  def d(?k), do: 19
+  def d(?m), do: 20
+  def d(?n), do: 21
+  def d(?p), do: 22
+  def d(?q), do: 23
+  def d(?r), do: 24
+  def d(?s), do: 25
+  def d(?t), do: 26
+  def d(?v), do: 27
+  def d(?w), do: 28
+  def d(?x), do: 29
+  def d(?y), do: 30
+  def d(?z), do: 31
 end

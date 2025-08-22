@@ -17,20 +17,6 @@ defmodule UXID do
   Many of the concepts of Stripe IDs have been used in this library.
   """
 
-  defstruct [
-    :case,
-    :delimiter,
-    :encoded,
-    :prefix,
-    :rand_size,
-    :rand,
-    :rand_encoded,
-    :size,
-    :string,
-    :time,
-    :time_encoded
-  ]
-
   @typedoc "Options for generating a UXID"
   @type option ::
           {:case, atom()} |
@@ -43,68 +29,42 @@ defmodule UXID do
   @type options :: [option()]
 
   @typedoc "A UXID represented as a String"
-  @type uxid_string :: String.t()
+  @type t() :: String.t()
 
-  @typedoc "An error string returned by the library if generation fails"
-  @type error_string :: String.t()
+  alias UXID.{Codec, Encoder}
 
-  @typedoc "A UXID struct"
-  @type t() :: %__MODULE__{
-          case: atom() | nil,
-          encoded: String.t() | nil,
-          prefix: String.t() | nil,
-          delimiter: String.t() | nil,
-          rand_size: pos_integer() | nil,
-          rand: binary() | nil,
-          rand_encoded: String.t() | nil,
-          size: atom() | nil,
-          string: String.t() | nil,
-          time: pos_integer() | nil,
-          time_encoded: String.t() | nil
-        }
-
-  alias UXID.Encoder
-
-  @default_delimiter "_"
-
-  @spec generate(opts :: options()) :: {:ok, uxid_string()} | {:error, error_string()}
+  @spec generate(opts :: options()) :: {:ok, __MODULE__.t()}
   @doc """
   Returns an encoded UXID string along with response status.
   """
   def generate(opts \\ []) do
-    case new(opts) do
-      {:ok, %__MODULE__{string: string}} ->
-        {:ok, string}
+    {:ok, %Codec{string: string}} = new(opts)
 
-      _other ->
-        {:error, "Unknown error"}
-    end
+    {:ok, string}
   end
 
-  @spec generate!(opts :: options()) :: uxid_string()
+  @spec generate!(opts :: options()) :: __MODULE__.t()
   @doc """
-  Returns an unwrapped encoded UXID string or raises on error.
+  Returns an unwrapped encoded UXID string.
   """
   def generate!(opts \\ []) do
-    case generate(opts) do
-      {:ok, uxid} -> uxid
-      {:error, error} -> raise error
-    end
+    {:ok, uxid} = generate(opts)
+    uxid
   end
 
-  @spec new(opts :: options()) :: {:ok, __MODULE__.t()} | {:error, error_string()}
+  @spec new(opts :: options()) :: {:ok, Codec.t()}
   @doc """
-  Returns a new UXID struct. This is useful for development.
+  Returns a new UXID.Codec struct. This is useful for development.
   """
   def new(opts \\ []) do
     case = Keyword.get(opts, :case, encode_case())
     prefix = Keyword.get(opts, :prefix)
     rand_size = Keyword.get(opts, :rand_size)
     size = Keyword.get(opts, :size)
-    delimiter = Keyword.get(opts, :delimiter, @default_delimiter)
+    delimiter = Keyword.get(opts, :delimiter)
     timestamp = Keyword.get(opts, :time, System.system_time(:millisecond))
 
-    %__MODULE__{
+    %Codec{
       case: case,
       prefix: prefix,
       rand_size: rand_size,

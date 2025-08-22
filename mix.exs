@@ -13,6 +13,7 @@ defmodule UXID.MixProject do
     {:ecto, "~> 3.12", optional: true},
 
     # Development, Documentation, Testing, ...
+    {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
     {:ex_doc, "~> 0.23", only: :dev},
     {:benchee, "~> 1.0", only: :dev},
     {:benchee_html, "~> 1.0", only: :dev},

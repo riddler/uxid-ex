@@ -90,8 +90,15 @@ defmodule UXID do
       prefix = Map.get(opts, :prefix)
       size = Map.get(opts, :size)
       rand_size = Map.get(opts, :rand_size)
+      delimiter = Keyword.get(opts, :delimiter)
 
-      __MODULE__.generate!(case: case, prefix: prefix, size: size, rand_size: rand_size)
+      __MODULE__.generate!(
+        case: case,
+        prefix: prefix,
+        size: size,
+        rand_size: rand_size,
+        delimiter: delimiter
+      )
     end
 
     @impl Ecto.ParameterizedType

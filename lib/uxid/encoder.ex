@@ -3,15 +3,19 @@ defmodule UXID.Encoder do
   Encodes UXID structs into strings 
   """
 
+  alias UXID.Codec
+
+  @default_delimiter "_"
   @default_rand_size 10
 
-  def process(%UXID{} = struct) do
+  def process(%Codec{} = struct) do
     uxid =
       struct
       |> ensure_time()
       |> ensure_rand_size()
       |> ensure_rand()
       |> ensure_case()
+      |> ensure_delimiter()
       |> encode()
       |> prefix()
 
@@ -20,59 +24,63 @@ defmodule UXID.Encoder do
 
   # === Private helpers
 
-  defp ensure_time(%UXID{time: nil} = uxid),
+  defp ensure_time(%Codec{time: nil} = uxid),
     do: %{uxid | time: System.system_time(:millisecond)}
 
   defp ensure_time(uxid),
     do: uxid
 
-  defp ensure_rand_size(%UXID{rand_size: nil, size: :xs} = uxid),
+  defp ensure_rand_size(%Codec{rand_size: nil, size: :xs} = uxid),
     do: %{uxid | rand_size: 0}
 
-  defp ensure_rand_size(%UXID{rand_size: nil, size: :xsmall} = uxid),
+  defp ensure_rand_size(%Codec{rand_size: nil, size: :xsmall} = uxid),
     do: %{uxid | rand_size: 0}
 
-  defp ensure_rand_size(%UXID{rand_size: nil, size: :s} = uxid),
+  defp ensure_rand_size(%Codec{rand_size: nil, size: :s} = uxid),
     do: %{uxid | rand_size: 2}
 
-  defp ensure_rand_size(%UXID{rand_size: nil, size: :small} = uxid),
+  defp ensure_rand_size(%Codec{rand_size: nil, size: :small} = uxid),
     do: %{uxid | rand_size: 2}
 
-  defp ensure_rand_size(%UXID{rand_size: nil, size: :m} = uxid),
+  defp ensure_rand_size(%Codec{rand_size: nil, size: :m} = uxid),
     do: %{uxid | rand_size: 5}
 
-  defp ensure_rand_size(%UXID{rand_size: nil, size: :medium} = uxid),
+  defp ensure_rand_size(%Codec{rand_size: nil, size: :medium} = uxid),
     do: %{uxid | rand_size: 5}
 
-  defp ensure_rand_size(%UXID{rand_size: nil, size: :l} = uxid),
+  defp ensure_rand_size(%Codec{rand_size: nil, size: :l} = uxid),
     do: %{uxid | rand_size: 7}
 
-  defp ensure_rand_size(%UXID{rand_size: nil, size: :large} = uxid),
+  defp ensure_rand_size(%Codec{rand_size: nil, size: :large} = uxid),
     do: %{uxid | rand_size: 7}
 
-  defp ensure_rand_size(%UXID{rand_size: nil, size: :xl} = uxid),
+  defp ensure_rand_size(%Codec{rand_size: nil, size: :xl} = uxid),
     do: %{uxid | rand_size: 10}
 
-  defp ensure_rand_size(%UXID{rand_size: nil, size: :xlarge} = uxid),
+  defp ensure_rand_size(%Codec{rand_size: nil, size: :xlarge} = uxid),
     do: %{uxid | rand_size: 10}
 
-  defp ensure_rand_size(%UXID{rand_size: nil} = uxid),
+  defp ensure_rand_size(%Codec{rand_size: nil} = uxid),
     do: %{uxid | rand_size: @default_rand_size}
 
   defp ensure_rand_size(uxid), do: uxid
 
-  defp ensure_rand(%UXID{rand_size: rand_size, rand: nil} = uxid),
+  defp ensure_rand(%Codec{rand_size: rand_size, rand: nil} = uxid),
     do: %{uxid | rand: :crypto.strong_rand_bytes(rand_size)}
 
   defp ensure_rand(uxid), do: uxid
 
-  defp ensure_case(%UXID{case: nil} = uxid),
+  defp ensure_case(%Codec{case: nil} = uxid),
     do: %{uxid | case: UXID.encode_case()}
 
-  defp ensure_case(%UXID{case: encode_case} = uxid),
-    do: %{uxid | case: encode_case}
+  defp ensure_case(uxid), do: uxid
 
-  defp encode(%UXID{} = input) do
+  defp ensure_delimiter(%Codec{delimiter: nil} = uxid),
+    do: %{uxid | delimiter: @default_delimiter}
+
+  defp ensure_delimiter(uxid), do: uxid
+
+  defp encode(%Codec{} = input) do
     uxid =
       input
       |> encode_time()
@@ -81,7 +89,7 @@ defmodule UXID.Encoder do
     %{uxid | encoded: uxid.time_encoded <> uxid.rand_encoded}
   end
 
-  defp encode_time(%UXID{case: case, time: time, time_encoded: nil} = uxid) do
+  defp encode_time(%Codec{case: case, time: time, time_encoded: nil} = uxid) do
     string = encode_time(<<time::unsigned-size(48)>>, case)
     %{uxid | time_encoded: string}
   end
@@ -102,7 +110,7 @@ defmodule UXID.Encoder do
     time_encoded -> time_encoded
   end
 
-  defp encode_rand(%UXID{case: case, rand_size: rand_size, rand_encoded: nil} = uxid) do
+  defp encode_rand(%Codec{case: case, rand_size: rand_size, rand_encoded: nil} = uxid) do
     string =
       rand_size
       |> :crypto.strong_rand_bytes()
@@ -316,9 +324,9 @@ defmodule UXID.Encoder do
 
   defp encode_rand(_, _any), do: :error
 
-  defp prefix(%UXID{prefix: nil, encoded: encoded} = uxid), do: %{uxid | string: encoded}
+  defp prefix(%Codec{prefix: nil, encoded: encoded} = uxid), do: %{uxid | string: encoded}
 
-  defp prefix(%UXID{prefix: prefix, encoded: encoded, delimiter: delimiter} = uxid),
+  defp prefix(%Codec{prefix: prefix, encoded: encoded, delimiter: delimiter} = uxid),
     do: %{uxid | string: prefix <> delimiter <> encoded}
 
   # Encode functions

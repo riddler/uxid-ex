@@ -1,8 +1,12 @@
 ### Upcoming
 
-* (None yet)
+* Adds delimiter option (default is '_')
+* Adds UXID.Codec with encoding struct and type
+* Fixes Dialyzer issues
 
 ### 2.0.0 / 2025-04-27
+
+#### Breaking Changes
 
 * Adds case config and functionality
 * Makes lowercase the default

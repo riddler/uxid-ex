@@ -19,6 +19,7 @@ defmodule UXID do
 
   defstruct [
     :case,
+    :delimiter,
     :encoded,
     :prefix,
     :rand_size,
@@ -36,7 +37,8 @@ defmodule UXID do
           {:time, integer()} |
           {:size, atom()} |
           {:rand_size, integer()} |
-          {:prefix, String.t()}
+          {:prefix, String.t()} |
+          {:delimiter, String.t()}
 
   @type options :: [option()]
 
@@ -51,6 +53,7 @@ defmodule UXID do
           case: atom() | nil,
           encoded: String.t() | nil,
           prefix: String.t() | nil,
+          delimiter: String.t() | nil,
           rand_size: pos_integer() | nil,
           rand: binary() | nil,
           rand_encoded: String.t() | nil,
@@ -61,6 +64,8 @@ defmodule UXID do
         }
 
   alias UXID.Encoder
+
+  @default_delimiter "_"
 
   @spec generate(opts :: options()) :: {:ok, uxid_string()} | {:error, error_string()}
   @doc """
@@ -96,6 +101,7 @@ defmodule UXID do
     prefix = Keyword.get(opts, :prefix)
     rand_size = Keyword.get(opts, :rand_size)
     size = Keyword.get(opts, :size)
+    delimiter = Keyword.get(opts, :delimiter, @default_delimiter)
     timestamp = Keyword.get(opts, :time, System.system_time(:millisecond))
 
     %__MODULE__{
@@ -103,7 +109,8 @@ defmodule UXID do
       prefix: prefix,
       rand_size: rand_size,
       size: size,
-      time: timestamp
+      time: timestamp,
+      delimiter: delimiter
     }
     |> Encoder.process()
   end

@@ -71,7 +71,6 @@ defmodule UXID.MixProject do
     [
       licenses: ["MIT"],
       links: %{
-        "UXID Project" => "https://github.com/riddler/uxid",
         "GitHub" => "https://github.com/riddler/uxid-ex"
       }
     ]

@@ -19,12 +19,12 @@ defmodule UXID do
 
   @typedoc "Options for generating a UXID"
   @type option ::
-          {:case, atom()} |
-          {:time, integer()} |
-          {:size, atom()} |
-          {:rand_size, integer()} |
-          {:prefix, String.t()} |
-          {:delimiter, String.t()}
+          {:case, atom()}
+          | {:time, integer()}
+          | {:size, atom()}
+          | {:rand_size, integer()}
+          | {:prefix, String.t()}
+          | {:delimiter, String.t()}
 
   @type options :: [option()]
 
@@ -32,6 +32,7 @@ defmodule UXID do
   @type t() :: String.t()
 
   alias UXID.{Codec, Encoder}
+  alias UXID.Decoder
 
   @spec generate(opts :: options()) :: {:ok, __MODULE__.t()}
   @doc """
@@ -77,6 +78,17 @@ defmodule UXID do
 
   def encode_case(), do: Application.get_env(:uxid, :case, :lower)
 
+  @spec decode(String.t()) :: {:ok, %Codec{}}
+  @doc """
+  Decodes a UXID string and returns a Codec struct with extracted components.
+  """
+  def decode(uxid) do
+    %Codec{
+      string: uxid
+    }
+    |> Decoder.process()
+  end
+
   # Define additional functions for custom Ecto type if Ecto is loaded
   if Code.ensure_loaded?(Ecto) do
     use Ecto.ParameterizedType
@@ -90,7 +102,7 @@ defmodule UXID do
       prefix = Map.get(opts, :prefix)
       size = Map.get(opts, :size)
       rand_size = Map.get(opts, :rand_size)
-      delimiter = Keyword.get(opts, :delimiter)
+      delimiter = Map.get(opts, :delimiter)
 
       __MODULE__.generate!(
         case: case,
@@ -120,7 +132,13 @@ defmodule UXID do
     @doc """
     Casts the given input to the UXID ParameterizedType with the given parameters.
     """
-    def cast(data, _params), do: {:ok, data}
+    def cast(data, _params) do
+      cast_binary(data)
+    end
+
+    defp cast_binary(nil), do: {:ok, nil}
+    defp cast_binary(term) when is_binary(term), do: {:ok, term}
+    defp cast_binary(_), do: :error
 
     @impl Ecto.ParameterizedType
     @doc """

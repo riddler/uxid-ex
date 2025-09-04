@@ -6,9 +6,10 @@ defmodule UXID.EncoderTest do
   describe "process/1 with blank UXID using upper case" do
     test "app config returns a lowercase 26 character string (ULID)" do
       Application.put_env(:uxid, :case, :upper)
-      on_exit fn ->
+
+      on_exit(fn ->
         Application.delete_env(:uxid, :case)
-      end
+      end)
 
       {:ok, %Codec{string: uxid}} = Encoder.process(%Codec{})
       assert String.length(uxid) == 26

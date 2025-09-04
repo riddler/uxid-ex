@@ -2,7 +2,7 @@ defmodule UXID.Codec do
   @moduledoc """
   This represents a UXID during encoding with all of the fields split out.
   """
-  
+
   defstruct [
     :case,
     :delimiter,

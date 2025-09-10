@@ -78,10 +78,9 @@ defmodule UXID do
   def encode_case(), do: Application.get_env(:uxid, :case, :lower)
 
   # Define additional functions for custom Ecto type if Ecto is loaded
-  if Code.ensure_loaded?(Ecto) do
-    use Ecto.ParameterizedType
-
-    @impl Ecto.ParameterizedType
+  if Code.ensure_loaded?(Ecto.ParameterizedType) do
+    @behaviour Ecto.ParameterizedType
+    
     @doc """
     Generates a loaded version of the UXID.
     """
@@ -101,13 +100,11 @@ defmodule UXID do
       )
     end
 
-    @impl Ecto.ParameterizedType
     @doc """
     Returns the underlying schema type for a UXID.
     """
     def type(_opts), do: :string
 
-    @impl Ecto.ParameterizedType
     @doc """
     Converts the options specified in the field macro into parameters to be used in other callbacks.
     """
@@ -116,22 +113,30 @@ defmodule UXID do
       Enum.into(opts, %{})
     end
 
-    @impl Ecto.ParameterizedType
     @doc """
     Casts the given input to the UXID ParameterizedType with the given parameters.
     """
     def cast(data, _params), do: {:ok, data}
 
-    @impl Ecto.ParameterizedType
     @doc """
     Loads the given term into a UXID.
     """
     def load(data, _loader, _params), do: {:ok, data}
 
-    @impl Ecto.ParameterizedType
     @doc """
     Dumps the given term into an Ecto native type.
     """
     def dump(data, _dumper, _params), do: {:ok, data}
+
+    @doc """
+    Dictates how the type should be treated if embedded.
+    For UXIDs, we use :self since they're already strings.
+    """
+    def embed_as(_format, _params), do: :self
+
+    @doc """
+    Checks if two UXIDs are equal.
+    """
+    def equal?(left, right, _params), do: left == right
   end
 end

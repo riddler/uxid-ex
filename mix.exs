@@ -4,7 +4,8 @@ defmodule UXID.MixProject do
   @name "UXID"
   @app :uxid
   @description "Generates UX focused IDs like: usr_01epey2p06tr1rtv07xa82zgjj (K-sortable with prefix - like Stripe)"
-  @version "2.0.1"
+  @version "2.1.0"
+  @source_url "https://github.com/riddler/uxid-ex"
 
   @deps [
     # Required
@@ -42,7 +43,7 @@ defmodule UXID.MixProject do
       xref: [exclude: Ecto.ParameterizedType],
 
       # Docs
-      source_url: "https://github.com/riddler/uxid-ex",
+      source_url: @source_url,
       docs: docs()
     ]
   end
@@ -61,18 +62,22 @@ defmodule UXID.MixProject do
 
   defp docs do
     [
+      name: "UXID",
+      source_ref: "v#{@version}",
+      canonical: "https://hexdocs.pm/uxid",
       main: "readme",
-      source_url: "https://github.com/riddler/uxid-ex",
-      extras: ["README.md"]
+      source_url: @source_url,
+      extras: ["README.md", "CHANGELOG.md", "LICENSE"]
     ]
   end
 
   defp package() do
     [
+      name: @app,
+      files: ~w(lib/uxid* mix.exs README.md LICENSE CHANGELOG.md),
       licenses: ["MIT"],
-      links: %{
-        "GitHub" => "https://github.com/riddler/uxid-ex"
-      }
+      links: %{"GitHub" => @source_url},
+      maintainers: ["UXID Team"]
     ]
   end
 

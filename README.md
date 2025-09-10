@@ -60,7 +60,7 @@ The package can be installed by adding `uxid` to your list of dependencies in `m
 ```elixir
 def deps do
   [
-    {:uxid, "~> 2.0"}
+    {:uxid, "~> 2.1"}
   ]
 end
 ```

@@ -19,12 +19,12 @@ defmodule UXID do
 
   @typedoc "Options for generating a UXID"
   @type option ::
-          {:case, atom()} |
-          {:time, integer()} |
-          {:size, atom()} |
-          {:rand_size, integer()} |
-          {:prefix, String.t()} |
-          {:delimiter, String.t()}
+          {:case, atom()}
+          | {:time, integer()}
+          | {:size, atom()}
+          | {:rand_size, integer()}
+          | {:prefix, String.t()}
+          | {:delimiter, String.t()}
 
   @type options :: [option()]
 
@@ -80,7 +80,7 @@ defmodule UXID do
   # Define additional functions for custom Ecto type if Ecto is loaded
   if Code.ensure_loaded?(Ecto.ParameterizedType) do
     @behaviour Ecto.ParameterizedType
-    
+
     @doc """
     Generates a loaded version of the UXID.
     """

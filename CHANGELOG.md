@@ -1,8 +1,12 @@
 ### Upcoming
 
+### 2.1.0 / 2025-09-10
+
 * Adds delimiter option (default is '_')
 * Adds UXID.Codec with encoding struct and type
 * Fixes Dialyzer issues
+* Changes UXID type to String.t() to work better with TypedEctoSchema
+* Changes how Ecto.Paramaterized type is implemented to work in projects without Ecto
 
 ### 2.0.0 / 2025-04-27
 

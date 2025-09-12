@@ -4,7 +4,7 @@ defmodule UXID.MixProject do
   @name "UXID"
   @app :uxid
   @description "Generates UX focused IDs like: usr_01epey2p06tr1rtv07xa82zgjj (K-sortable with prefix - like Stripe)"
-  @version "2.1.0"
+  @version "2.2.0"
   @source_url "https://github.com/riddler/uxid-ex"
 
   @deps [

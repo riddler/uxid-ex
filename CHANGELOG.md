@@ -1,5 +1,9 @@
 ### Upcoming
 
+### 2.2.0 / 2025-09-12
+
+* Adds UXID.Decoder module with full pipeline processing and uppercase/lowercase support
+
 ### 2.1.0 / 2025-09-10
 
 * Adds delimiter option (default is '_')

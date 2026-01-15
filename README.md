@@ -53,6 +53,40 @@ defmodule YourApp.User do
 end
 ```
 
+### Configuration
+
+#### Case
+
+The `:case` config option controls the default case for generated UXIDs. By default, UXIDs are lowercase (`:lower`), but you can configure uppercase (`:upper`) globally or per-call.
+
+```elixir
+# config/config.exs
+config :uxid, case: :upper
+
+# All generated UXIDs will be uppercase by default
+UXID.generate!()
+# => "01EMDGJF0DQXQJ8FM78XE97Y3H"
+
+# Override per-call if needed
+UXID.generate!(case: :lower)
+# => "01emdgjf0dqxqj8fm78xe97y3h"
+```
+
+#### Minimum Size
+
+The `:min_size` config option enforces a minimum UXID size regardless of what size is requested. This is useful in test environments where many IDs are generated rapidly, as smaller sizes have limited randomness that can cause duplicate key violations.
+
+```elixir
+# config/test.exs
+config :uxid, min_size: :medium
+
+# In application code - requests :small but gets :medium in test env
+UXID.generate!(prefix: "usr", size: :small)
+# => Returns 18 character UXID instead of 14
+```
+
+When configured, any requested size smaller than `:min_size` will be automatically upgraded. Larger sizes are not affected.
+
 ## Installation
 
 The package can be installed by adding `uxid` to your list of dependencies in `mix.exs`:

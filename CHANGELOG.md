@@ -1,5 +1,7 @@
 ### Upcoming
 
+* Adds min_size config option to enforce minimum UXID sizes (useful for test environments)
+
 ### 2.2.0 / 2025-09-12
 
 * Adds UXID.Decoder module with full pipeline processing and uppercase/lowercase support

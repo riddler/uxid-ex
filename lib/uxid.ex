@@ -78,6 +78,12 @@ defmodule UXID do
 
   def encode_case(), do: Application.get_env(:uxid, :case, :lower)
 
+  @doc """
+  Returns the minimum size configuration.
+  When set, any requested size smaller than this will be upgraded.
+  """
+  def min_size(), do: Application.get_env(:uxid, :min_size, nil)
+
   @spec decode(String.t()) :: {:ok, %Codec{}}
   @doc """
   Decodes a UXID string and returns a Codec struct with extracted components.

@@ -8,10 +8,24 @@ defmodule UXID.Encoder do
   @default_delimiter "_"
   @default_rand_size 10
 
+  @size_order [:xs, :xsmall, :s, :small, :m, :medium, :l, :large, :xl, :xlarge]
+
+  # nil means default (xlarge)
+  defp size_to_index(nil), do: 999
+  defp size_to_index(size), do: Enum.find_index(@size_order, &(&1 == size)) || 999
+
+  defp max_size(size1, nil), do: size1
+  defp max_size(nil, size2), do: size2
+
+  defp max_size(size1, size2) do
+    if size_to_index(size1) >= size_to_index(size2), do: size1, else: size2
+  end
+
   def process(%Codec{} = struct) do
     uxid =
       struct
       |> ensure_time()
+      |> ensure_min_size()
       |> ensure_rand_size()
       |> ensure_rand()
       |> ensure_case()
@@ -29,6 +43,13 @@ defmodule UXID.Encoder do
 
   defp ensure_time(uxid),
     do: uxid
+
+  defp ensure_min_size(%Codec{size: size} = uxid) do
+    case UXID.min_size() do
+      nil -> uxid
+      min -> %{uxid | size: max_size(size, min)}
+    end
+  end
 
   defp ensure_rand_size(%Codec{rand_size: nil, size: :xs} = uxid),
     do: %{uxid | rand_size: 0}

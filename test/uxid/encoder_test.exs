@@ -92,4 +92,36 @@ defmodule UXID.EncoderTest do
       assert "X-" <> _uxid = uxid
     end
   end
+
+  describe "min_size configuration" do
+    setup do
+      Application.put_env(:uxid, :min_size, :medium)
+
+      on_exit(fn ->
+        Application.delete_env(:uxid, :min_size)
+      end)
+    end
+
+    test "upgrades :xsmall to :medium when min_size is :medium" do
+      {:ok, codec} = UXID.Encoder.process(%UXID.Codec{size: :xsmall})
+      # :medium = 5 bytes rand = 8 chars, timestamp = 10 chars, total = 18
+      assert String.length(codec.string) == 18
+    end
+
+    test "upgrades :small to :medium when min_size is :medium" do
+      {:ok, codec} = UXID.Encoder.process(%UXID.Codec{size: :small})
+      assert String.length(codec.string) == 18
+    end
+
+    test "does not downgrade :large when min_size is :medium" do
+      {:ok, codec} = UXID.Encoder.process(%UXID.Codec{size: :large})
+      # :large = 7 bytes rand = 12 chars, timestamp = 10 chars, total = 22
+      assert String.length(codec.string) == 22
+    end
+
+    test "respects min_size through public API" do
+      uxid = UXID.generate!(size: :small)
+      assert String.length(uxid) == 18
+    end
+  end
 end

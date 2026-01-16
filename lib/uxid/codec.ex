@@ -5,6 +5,7 @@ defmodule UXID.Codec do
 
   defstruct [
     :case,
+    :compact_time,
     :delimiter,
     :encoded,
     :prefix,
@@ -20,6 +21,7 @@ defmodule UXID.Codec do
   @typedoc "A UXID struct during encoding"
   @type t() :: %__MODULE__{
           case: atom() | nil,
+          compact_time: boolean() | nil,
           encoded: String.t() | nil,
           prefix: String.t() | nil,
           delimiter: String.t() | nil,

@@ -1,7 +1,8 @@
 defmodule UXID.Encoder do
   @moduledoc """
-  Encodes UXID structs into strings 
+  Encodes UXID structs into strings
   """
+  import Bitwise
 
   alias UXID.Codec
 
@@ -26,6 +27,7 @@ defmodule UXID.Encoder do
       struct
       |> ensure_time()
       |> ensure_min_size()
+      |> ensure_compact_time()
       |> ensure_rand_size()
       |> ensure_rand()
       |> ensure_case()
@@ -51,6 +53,31 @@ defmodule UXID.Encoder do
     end
   end
 
+  defp ensure_compact_time(%Codec{compact_time: explicit} = uxid) when not is_nil(explicit) do
+    # Explicit per-call setting - use it regardless of size
+    uxid
+  end
+
+  defp ensure_compact_time(%Codec{compact_time: nil, size: size} = uxid) do
+    # No explicit setting - apply global policy only for small sizes
+    compact = UXID.compact_small_times() && size in [:xs, :xsmall, :s, :small]
+    %{uxid | compact_time: compact}
+  end
+
+  # Compact mode clauses - add extra byte of randomness (8 bits freed from timestamp)
+  defp ensure_rand_size(%Codec{rand_size: nil, size: :xs, compact_time: true} = uxid),
+    do: %{uxid | rand_size: 1}
+
+  defp ensure_rand_size(%Codec{rand_size: nil, size: :xsmall, compact_time: true} = uxid),
+    do: %{uxid | rand_size: 1}
+
+  defp ensure_rand_size(%Codec{rand_size: nil, size: :s, compact_time: true} = uxid),
+    do: %{uxid | rand_size: 3}
+
+  defp ensure_rand_size(%Codec{rand_size: nil, size: :small, compact_time: true} = uxid),
+    do: %{uxid | rand_size: 3}
+
+  # Standard mode clauses
   defp ensure_rand_size(%Codec{rand_size: nil, size: :xs} = uxid),
     do: %{uxid | rand_size: 0}
 
@@ -63,6 +90,19 @@ defmodule UXID.Encoder do
   defp ensure_rand_size(%Codec{rand_size: nil, size: :small} = uxid),
     do: %{uxid | rand_size: 2}
 
+  # Compact mode for medium/large sizes (when explicitly requested)
+  defp ensure_rand_size(%Codec{rand_size: nil, size: :m, compact_time: true} = uxid),
+    do: %{uxid | rand_size: 6}
+
+  defp ensure_rand_size(%Codec{rand_size: nil, size: :medium, compact_time: true} = uxid),
+    do: %{uxid | rand_size: 6}
+
+  defp ensure_rand_size(%Codec{rand_size: nil, size: :l, compact_time: true} = uxid),
+    do: %{uxid | rand_size: 8}
+
+  defp ensure_rand_size(%Codec{rand_size: nil, size: :large, compact_time: true} = uxid),
+    do: %{uxid | rand_size: 8}
+
   defp ensure_rand_size(%Codec{rand_size: nil, size: :m} = uxid),
     do: %{uxid | rand_size: 5}
 
@@ -74,6 +114,13 @@ defmodule UXID.Encoder do
 
   defp ensure_rand_size(%Codec{rand_size: nil, size: :large} = uxid),
     do: %{uxid | rand_size: 7}
+
+  # Compact mode for xlarge (when explicitly requested)
+  defp ensure_rand_size(%Codec{rand_size: nil, size: :xl, compact_time: true} = uxid),
+    do: %{uxid | rand_size: 11}
+
+  defp ensure_rand_size(%Codec{rand_size: nil, size: :xlarge, compact_time: true} = uxid),
+    do: %{uxid | rand_size: 11}
 
   defp ensure_rand_size(%Codec{rand_size: nil, size: :xl} = uxid),
     do: %{uxid | rand_size: 10}
@@ -110,12 +157,24 @@ defmodule UXID.Encoder do
     %{uxid | encoded: uxid.time_encoded <> uxid.rand_encoded}
   end
 
-  defp encode_time(%Codec{case: case, time: time, time_encoded: nil} = uxid) do
-    string = encode_time(<<time::unsigned-size(48)>>, case)
+  defp encode_time(%Codec{compact_time: true, case: case, time: time, time_encoded: nil} = uxid) do
+    # Use only 40 bits of timestamp (remove 8 MSB)
+    # This gives us timestamps valid until ~Sep 2039
+    # Perfect 5-bit alignment: 8 characters × 5 bits = 40 bits
+    truncated_time = time &&& 0xFFFFFFFFFF
+    string = encode_time_compact(<<truncated_time::unsigned-size(40)>>, case)
     %{uxid | time_encoded: string}
   end
 
-  defp encode_time(
+  defp encode_time(%Codec{case: case, time: time, time_encoded: nil} = uxid) do
+    string = encode_time_full(<<time::unsigned-size(48)>>, case)
+    %{uxid | time_encoded: string}
+  end
+
+  defp encode_time(uxid), do: uxid
+
+  # Full 48-bit timestamp -> 10 characters (existing logic, renamed)
+  defp encode_time_full(
          <<t1::3, t2::5, t3::5, t4::5, t5::5, t6::5, t7::5, t8::5, t9::5, t10::5>>,
          :lower
        ) do
@@ -126,11 +185,34 @@ defmodule UXID.Encoder do
     time_encoded -> time_encoded
   end
 
-  defp encode_time(
+  defp encode_time_full(
          <<t1::3, t2::5, t3::5, t4::5, t5::5, t6::5, t7::5, t8::5, t9::5, t10::5>>,
          _upper
        ) do
     <<e(t1), e(t2), e(t3), e(t4), e(t5), e(t6), e(t7), e(t8), e(t9), e(t10)>>
+  catch
+    :error -> :error
+  else
+    time_encoded -> time_encoded
+  end
+
+  # Compact 40-bit timestamp -> 8 characters (8 × 5 = 40 bits, perfect alignment!)
+  defp encode_time_compact(
+         <<t1::5, t2::5, t3::5, t4::5, t5::5, t6::5, t7::5, t8::5>>,
+         :lower
+       ) do
+    <<el(t1), el(t2), el(t3), el(t4), el(t5), el(t6), el(t7), el(t8)>>
+  catch
+    :error -> :error
+  else
+    time_encoded -> time_encoded
+  end
+
+  defp encode_time_compact(
+         <<t1::5, t2::5, t3::5, t4::5, t5::5, t6::5, t7::5, t8::5>>,
+         _upper
+       ) do
+    <<e(t1), e(t2), e(t3), e(t4), e(t5), e(t6), e(t7), e(t8)>>
   catch
     :error -> :error
   else

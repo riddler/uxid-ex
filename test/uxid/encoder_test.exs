@@ -124,4 +124,161 @@ defmodule UXID.EncoderTest do
       assert String.length(uxid) == 18
     end
   end
+
+  describe "compact_small_times configuration" do
+    setup do
+      Application.put_env(:uxid, :compact_small_times, true)
+
+      on_exit(fn ->
+        Application.delete_env(:uxid, :compact_small_times)
+      end)
+    end
+
+    test "compact_small_times produces 8-char timestamp for :xsmall" do
+      {:ok, codec} = UXID.Encoder.process(%UXID.Codec{size: :xsmall})
+      assert String.length(codec.time_encoded) == 8
+      # Total: 8 + 2 = 10 chars (same as standard 10 + 0 = 10)
+      assert String.length(codec.encoded) == 10
+      assert String.length(codec.rand_encoded) == 2
+    end
+
+    test "compact_small_times produces 8-char timestamp for :small" do
+      {:ok, codec} = UXID.Encoder.process(%UXID.Codec{size: :small})
+      assert String.length(codec.time_encoded) == 8
+      # Total: 8 + 5 = 13 chars (3 bytes = 24 bits = 5 chars in Base32)
+      assert String.length(codec.encoded) == 13
+      assert String.length(codec.rand_encoded) == 5
+    end
+
+    test "compact_small_times does NOT affect :medium" do
+      {:ok, codec} = UXID.Encoder.process(%UXID.Codec{size: :medium})
+      assert String.length(codec.time_encoded) == 10
+      assert String.length(codec.encoded) == 18
+    end
+
+    test "compact_small_times does NOT affect :large" do
+      {:ok, codec} = UXID.Encoder.process(%UXID.Codec{size: :large})
+      assert String.length(codec.time_encoded) == 10
+      assert String.length(codec.encoded) == 22
+    end
+
+    test "compact preserves sortability within epoch" do
+      {:ok, codec1} = UXID.Encoder.process(%UXID.Codec{size: :small, time: 1000})
+      {:ok, codec2} = UXID.Encoder.process(%UXID.Codec{size: :small, time: 2000})
+      assert codec1.time_encoded < codec2.time_encoded
+    end
+
+    test "compact_small_times via public API" do
+      uxid = UXID.generate!(size: :small)
+      assert String.length(uxid) == 13
+    end
+
+    test "compact_small_times with prefix" do
+      uxid = UXID.generate!(size: :small, prefix: "usr")
+      assert String.length(uxid) == 17
+      assert String.starts_with?(uxid, "usr_")
+    end
+
+    test "compact_small_times works with min_size" do
+      Application.put_env(:uxid, :min_size, :medium)
+
+      on_exit(fn ->
+        Application.delete_env(:uxid, :min_size)
+      end)
+
+      # Request :small, gets upgraded to :medium, should NOT be compacted
+      {:ok, codec} = UXID.Encoder.process(%UXID.Codec{size: :small})
+      assert String.length(codec.time_encoded) == 10
+      assert String.length(codec.encoded) == 18
+    end
+  end
+
+  describe "compact_time per-call override" do
+    setup do
+      # Set global policy to compact small times
+      Application.put_env(:uxid, :compact_small_times, true)
+
+      on_exit(fn ->
+        Application.delete_env(:uxid, :compact_small_times)
+      end)
+    end
+
+    test "compact_time: false overrides global policy for :small" do
+      {:ok, codec} = UXID.Encoder.process(%UXID.Codec{size: :small, compact_time: false})
+      assert String.length(codec.time_encoded) == 10
+      assert String.length(codec.encoded) == 14
+      assert String.length(codec.rand_encoded) == 4
+    end
+
+    test "compact_time: true works on :large even though global policy wouldn't apply" do
+      {:ok, codec} = UXID.Encoder.process(%UXID.Codec{size: :large, compact_time: true})
+      assert String.length(codec.time_encoded) == 8
+      # 8 bytes = 64 bits = 13 chars in Base32
+      assert String.length(codec.encoded) == 21
+      assert String.length(codec.rand_encoded) == 13
+    end
+
+    test "compact_time: true via public API" do
+      uxid = UXID.generate!(size: :large, compact_time: true)
+      assert String.length(uxid) == 21
+    end
+  end
+
+  describe "compact_time per-call override without global policy" do
+    test "compact_time: true enables compact mode even when global policy is off" do
+      # No global policy set (or explicitly false)
+      Application.put_env(:uxid, :compact_small_times, false)
+
+      on_exit(fn ->
+        Application.delete_env(:uxid, :compact_small_times)
+      end)
+
+      {:ok, codec} = UXID.Encoder.process(%UXID.Codec{size: :small, compact_time: true})
+      assert String.length(codec.time_encoded) == 8
+      assert String.length(codec.rand_encoded) == 5
+    end
+  end
+
+  describe "compact_time in Ecto autogenerate" do
+    # Note: This test requires Ecto to be loaded
+    # If Ecto is not available, this test will be skipped
+    @tag :ecto
+    test "autogenerate respects per-field compact_time option" do
+      if Code.ensure_loaded?(Ecto.ParameterizedType) do
+        # Simulate autogenerate with compact_time: true
+        opts = %{prefix: "sess", size: :small, compact_time: true}
+        uxid = UXID.autogenerate(opts)
+
+        # Decode to verify it was compacted
+        {:ok, decoded} = UXID.decode(uxid)
+        assert String.length(decoded.time_encoded) == 8
+        assert decoded.size == :small
+      else
+        # Skip test if Ecto is not loaded
+        :ok
+      end
+    end
+
+    @tag :ecto
+    test "autogenerate compact_time: false overrides global policy" do
+      if Code.ensure_loaded?(Ecto.ParameterizedType) do
+        Application.put_env(:uxid, :compact_small_times, true)
+
+        on_exit(fn ->
+          Application.delete_env(:uxid, :compact_small_times)
+        end)
+
+        # Explicitly disable compact for this field
+        opts = %{prefix: "sess", size: :small, compact_time: false}
+        uxid = UXID.autogenerate(opts)
+
+        # Decode to verify it was NOT compacted
+        {:ok, decoded} = UXID.decode(uxid)
+        assert String.length(decoded.time_encoded) == 10
+        assert decoded.size == :small
+      else
+        :ok
+      end
+    end
+  end
 end

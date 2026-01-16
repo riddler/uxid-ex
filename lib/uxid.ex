@@ -63,10 +63,12 @@ defmodule UXID do
     rand_size = Keyword.get(opts, :rand_size)
     size = Keyword.get(opts, :size)
     delimiter = Keyword.get(opts, :delimiter)
+    compact_time = Keyword.get(opts, :compact_time)
     timestamp = Keyword.get(opts, :time, System.system_time(:millisecond))
 
     %Codec{
       case: case,
+      compact_time: compact_time,
       prefix: prefix,
       rand_size: rand_size,
       size: size,
@@ -83,6 +85,16 @@ defmodule UXID do
   When set, any requested size smaller than this will be upgraded.
   """
   def min_size(), do: Application.get_env(:uxid, :min_size, nil)
+
+  @doc """
+  Returns whether compact time encoding is enabled for small sizes.
+  When true, :xs/:xsmall and :s/:small use 40 bits for timestamp instead of 48,
+  adding 8 bits to randomness. This is a global policy that can be overridden
+  per-call with the `compact_time` option.
+  This provides perfect 5-bit Crockford Base32 alignment (8 chars vs 10 chars).
+  K-sortability is maintained until ~September 2039.
+  """
+  def compact_small_times(), do: Application.get_env(:uxid, :compact_small_times, false)
 
   @spec decode(String.t()) :: {:ok, %Codec{}}
   @doc """
@@ -108,13 +120,15 @@ defmodule UXID do
       size = Map.get(opts, :size)
       rand_size = Map.get(opts, :rand_size)
       delimiter = Map.get(opts, :delimiter)
+      compact_time = Map.get(opts, :compact_time)
 
       __MODULE__.generate!(
         case: case,
         prefix: prefix,
         size: size,
         rand_size: rand_size,
-        delimiter: delimiter
+        delimiter: delimiter,
+        compact_time: compact_time
       )
     end
 

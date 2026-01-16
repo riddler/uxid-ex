@@ -2,6 +2,7 @@ defmodule UXID.Decoder do
   @moduledoc """
   Decodes UXID strings into Codec structs
   """
+  import Bitwise
 
   alias UXID.Codec
 
@@ -12,9 +13,10 @@ defmodule UXID.Decoder do
     decoded =
       struct
       |> separate_prefix()
+      |> decode_size()
+      |> ensure_compact_time()
       |> separate_encoded()
       |> decode_time()
-      |> decode_size()
       |> decode_rand()
       |> decode_rand_size()
 
@@ -44,14 +46,48 @@ defmodule UXID.Decoder do
     end
   end
 
-  def separate_encoded(%Codec{encoded: encoded} = struct) do
-    # Encoded Timestamp is always 10 characters
-    {time_encoded, rand_encoded} = String.split_at(encoded, 10)
+  def decode_size(%Codec{encoded: encoded} = struct) when is_binary(encoded) do
+    # Infer size AND compact mode from total encoded length
+    # Compact mode produces 1 char shorter lengths for small/large/xlarge
+    {size, compact} =
+      case String.length(encoded) do
+        10 -> {:xsmall, false}
+        13 -> {:small, true}
+        14 -> {:small, false}
+        18 -> {:medium, false}
+        21 -> {:large, true}
+        22 -> {:large, false}
+        25 -> {:xlarge, true}
+        26 -> {:xlarge, false}
+        _ -> {:unknown, false}
+      end
+
+    %{struct | size: size, compact_time: compact}
+  end
+
+  def decode_size(struct), do: struct
+
+  defp ensure_compact_time(%Codec{compact_time: explicit} = uxid) when not is_nil(explicit) do
+    # compact_time already determined by decode_size or explicitly set
+    uxid
+  end
+
+  defp ensure_compact_time(%Codec{compact_time: nil, size: size} = uxid) do
+    # Fallback: use global policy if compact_time wasn't inferred from length
+    compact = UXID.compact_small_times() && size in [:xs, :xsmall, :s, :small]
+    %{uxid | compact_time: compact}
+  end
+
+  def separate_encoded(%Codec{compact_time: true, encoded: encoded} = struct) do
+    # Compact mode: 8 character timestamp (40 bits, perfect 5-bit alignment)
+    {time_encoded, rand_encoded} = String.split_at(encoded, 8)
     %{struct | time_encoded: time_encoded, rand_encoded: rand_encoded}
   end
 
-  def decode_size(%Codec{rand_encoded: _rand_encoded} = struct) do
-    %{struct | size: :decode_not_supported}
+  def separate_encoded(%Codec{encoded: encoded} = struct) do
+    # Standard mode: 10 character timestamp
+    {time_encoded, rand_encoded} = String.split_at(encoded, 10)
+    %{struct | time_encoded: time_encoded, rand_encoded: rand_encoded}
   end
 
   def decode_rand(%Codec{rand_encoded: _rand_encoded} = struct) do
@@ -64,6 +100,39 @@ defmodule UXID.Decoder do
 
   # Decode UXID and extract timestamp
   @spec decode_time(Codec.t()) :: Codec.t()
+  # Compact 40-bit timestamp (8 characters, perfect 5-bit alignment)
+  # Requires epoch reconstruction to restore full 48-bit timestamp
+  def decode_time(
+        %Codec{
+          compact_time: true,
+          time_encoded: <<t1::8, t2::8, t3::8, t4::8, t5::8, t6::8, t7::8, t8::8>>
+        } = struct
+      ) do
+    # Decode the 40-bit compact timestamp
+    <<time_40::40>> =
+      <<d(t1)::5, d(t2)::5, d(t3)::5, d(t4)::5, d(t5)::5, d(t6)::5, d(t7)::5, d(t8)::5>>
+
+    # Reconstruct full 48-bit timestamp using current time to infer epoch
+    current_time = System.system_time(:millisecond)
+    current_epoch = current_time >>> 40
+
+    # Combine current epoch with decoded 40-bit time
+    reconstructed = current_epoch <<< 40 ||| time_40
+
+    # If reconstructed time is significantly in the future (>1 day),
+    # it's likely from the previous 40-bit cycle (edge case near epoch boundary)
+    time =
+      if reconstructed - current_time > 86_400_000 do
+        # Subtract one 40-bit epoch (2^40 milliseconds ≈ 34.8 years)
+        reconstructed - 0x10000000000
+      else
+        reconstructed
+      end
+
+    %{struct | time: time}
+  end
+
+  # Standard 48-bit timestamp (10 characters)
   def decode_time(
         %Codec{
           time_encoded: <<t1::8, t2::8, t3::8, t4::8, t5::8, t6::8, t7::8, t8::8, t9::8, t10::8>>

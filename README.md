@@ -33,6 +33,9 @@ UXID.generate! prefix: "cus" # "cus_01emdgjf0dqxqj8fm78xe97y3h"
 # T-Shirt sizes can be used (xs, s, m, l, xl) or (xsmall, small, medium, large, xlarge)
 UXID.generate! prefix: "cus", size: :small # "cus_01eqrh884aqyy1"
 
+# Compact time mode trades timestamp precision for more randomness (good for collision resistance)
+UXID.generate! prefix: "sess", size: :small, compact_time: true # "sess_kf3ng7s1mf41b"
+
 # Uppercase can be used to match previous UXID versions
 UXID.generate! case: :upper # "01EMDGJF0DQXQJ8FM78XE97Y3H"
 ```
@@ -47,7 +50,7 @@ defmodule YourApp.User do
 
   @primary_key {:id, UXID, autogenerate: true, prefix: "usr", size: :medium}
   schema "users" do
-    field :api_key, UXID, autogenerate: true, prefix: "apikey", size: :small
+    field :api_key, UXID, autogenerate: true, prefix: "apikey", size: :small, compact_time: true
     field :api_secret, UXID, autogenerate: true, prefix: "apisecret", size: :xlarge
   end
 end
@@ -86,6 +89,60 @@ UXID.generate!(prefix: "usr", size: :small)
 ```
 
 When configured, any requested size smaller than `:min_size` will be automatically upgraded. Larger sizes are not affected.
+
+#### Compact Time
+
+The `:compact_small_times` config option and per-call `compact_time` option provide improved collision resistance for small UXIDs by using shorter timestamps and more randomness.
+
+**Global Policy:**
+
+```elixir
+# config/test.exs
+config :uxid, compact_small_times: true
+
+# Automatically compacts :xs/:xsmall and :s/:small sizes
+UXID.generate!(size: :small)
+# => 13 chars (8 time + 5 rand = 24 bits random vs 16 bits standard)
+```
+
+**Per-Call Override:**
+
+```elixir
+# Override for any size - works even when global policy is off
+UXID.generate!(size: :large, compact_time: true)
+# => 21 chars with extra randomness
+
+# Opt out of global policy for specific calls
+UXID.generate!(size: :small, compact_time: false)
+# => 14 chars with standard randomness
+```
+
+**In Ecto Schemas:**
+
+```elixir
+defmodule YourApp.Session do
+  use Ecto.Schema
+
+  @primary_key {:id, UXID, autogenerate: true, prefix: "sess", size: :small, compact_time: true}
+  schema "sessions" do
+    # This session ID will always use compact mode for better collision resistance
+  end
+end
+```
+
+**How it works:**
+
+- Reduces timestamp from 48 bits (10 chars) to 40 bits (8 chars)
+- Frees 8 bits for additional randomness (e.g., :small gets 24 bits vs 16 bits)
+- Perfect 5-bit Crockford Base32 alignment
+- K-sortability maintained until ~September 2039
+- Decoder automatically detects compact format and reconstructs full timestamp using epoch inference
+
+**When to use:**
+
+- Test environments with rapid ID generation
+- Resources with small cardinality that need better collision resistance
+- Any scenario where you want to maximize randomness within a given length constraint
 
 ## Installation
 

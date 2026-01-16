@@ -37,7 +37,8 @@ defmodule UXIDTest do
                rand: :decode_not_supported,
                rand_encoded: "WY45WE5YQE3P2CJ2",
                rand_size: :decode_not_supported,
-               size: :decode_not_supported,
+               size: :xlarge,
+               compact_time: false,
                string: "01G2B5M42HWY45WE5YQE3P2CJ2",
                time: 1_651_789_926_481,
                time_encoded: "01G2B5M42H"

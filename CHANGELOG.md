@@ -1,6 +1,13 @@
 ### Upcoming
 
 * Adds min_size config option to enforce minimum UXID sizes (useful for test environments)
+* Adds compact_time feature for improved collision resistance in small UXIDs:
+  - Global policy via `compact_small_times` config automatically compacts :xs/:xsmall/:s/:small sizes
+  - Per-call override via `compact_time: true/false` option works for any size
+  - Uses 40-bit timestamps (8 chars) instead of 48-bit (10 chars), freeing 8 bits for randomness
+  - Example: :small gains 50% more randomness (24 bits vs 16 bits)
+  - Decoder automatically detects compact format from length and reconstructs full timestamp
+  - K-sortability maintained until ~September 2039
 
 ### 2.2.0 / 2025-09-12
 

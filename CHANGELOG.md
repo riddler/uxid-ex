@@ -1,5 +1,7 @@
 ### Upcoming
 
+### 2.3.0 / 2026-01-16
+
 * Adds min_size config option to enforce minimum UXID sizes (useful for test environments)
 * Adds compact_time feature for improved collision resistance in small UXIDs:
   - Global policy via `compact_small_times` config automatically compacts :xs/:xsmall/:s/:small sizes

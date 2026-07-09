@@ -81,6 +81,13 @@ defmodule UXID do
   def encode_case(), do: Application.get_env(:uxid, :case, :lower)
 
   @doc """
+  Returns the delimiter used to separate a prefix from the encoded body.
+  Defaults to `"_"` and can be overridden globally with the `:delimiter`
+  application env, or per-call/per-field with the `:delimiter` option.
+  """
+  def default_delimiter(), do: Application.get_env(:uxid, :delimiter, "_")
+
+  @doc """
   Returns the minimum size configuration.
   When set, any requested size smaller than this will be upgraded.
   """

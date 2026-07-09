@@ -6,8 +6,6 @@ defmodule UXID.Decoder do
 
   alias UXID.Codec
 
-  @delimiter "_"
-
   @spec process(Codec.t()) :: {:ok, Codec.t()} | {:error, String.t()}
   def process(%Codec{} = struct) do
     decoded =
@@ -34,15 +32,17 @@ defmodule UXID.Decoder do
   end
 
   defp split_uxid_string(uxid_string) do
+    delimiter = UXID.default_delimiter()
+
     uxid_string
-    |> String.split(@delimiter)
+    |> String.split(delimiter)
     |> case do
       [encoded] ->
         %{prefix: nil, encoded: encoded}
 
       split ->
         {encoded, prefix_parts} = List.pop_at(split, -1)
-        %{prefix: Enum.join(prefix_parts, @delimiter), encoded: encoded}
+        %{prefix: Enum.join(prefix_parts, delimiter), encoded: encoded}
     end
   end
 

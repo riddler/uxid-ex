@@ -6,7 +6,6 @@ defmodule UXID.Encoder do
 
   alias UXID.Codec
 
-  @default_delimiter "_"
   @default_rand_size 10
 
   @size_order [:xs, :xsmall, :s, :small, :m, :medium, :l, :large, :xl, :xlarge]
@@ -144,7 +143,7 @@ defmodule UXID.Encoder do
   defp ensure_case(uxid), do: uxid
 
   defp ensure_delimiter(%Codec{delimiter: nil} = uxid),
-    do: %{uxid | delimiter: @default_delimiter}
+    do: %{uxid | delimiter: UXID.default_delimiter()}
 
   defp ensure_delimiter(uxid), do: uxid
 

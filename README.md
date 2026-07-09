@@ -56,6 +56,37 @@ defmodule YourApp.User do
 end
 ```
 
+### Validation
+
+By default `cast/2` accepts any binary unchanged, which is ideal while a schema
+still holds a mix of legacy identifiers. A field can opt in to strict validation
+with `validate: true`, in which case a value must be either a structurally valid
+UXID carrying the field's configured `:prefix`, or a legacy bare UUID string
+(canonical 36-character form). Anything else — an empty string, the wrong prefix,
+non–Base32 characters — casts to `:error`.
+
+```elixir
+@primary_key {:id, UXID, autogenerate: true, prefix: "org", size: :medium, validate: true}
+schema "organizations" do
+  field :owner_org_id, UXID, prefix: "org", validate: true
+end
+```
+
+UUID coexistence is on by default so a table can migrate its column type from
+`uuid` to `text` without rewriting existing rows. Turn it off with
+`allow_uuid: false` once a table holds only UXIDs.
+
+You can also validate a string directly, without Ecto:
+
+```elixir
+UXID.valid?("org_01emdgjf0dqxqj8fm78xe97y3h")                 # => true
+UXID.valid?("org_01emdgjf0dqxqj8fm78xe97y3h", prefix: "usr")  # => false
+UXID.valid?("not-a-uxid")                                     # => false
+```
+
+`valid?/2` checks *structure* (prefix + Crockford Base32 body), not authenticity,
+and deliberately does not accept bare UUIDs — that coexistence lives in `cast/2`.
+
 ### Configuration
 
 #### Case

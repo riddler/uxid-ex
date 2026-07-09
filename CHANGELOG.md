@@ -1,5 +1,12 @@
 ### Upcoming
 
+* Adds `UXID.valid?/2` for structural validation of a UXID string (optional `:prefix` and `:delimiter`)
+* Adds opt-in strict casting for the Ecto type via `validate: true` on a field:
+  - Accepts a well-formed UXID carrying the field's configured `:prefix`, or a legacy bare UUID string
+  - Rejects malformed values (empty, wrong prefix, non–Base32) with `:error`
+  - UUID coexistence is on by default (eases `uuid` → `text` column migrations); disable with `allow_uuid: false`
+  - Default casting is unchanged (any binary passes) when `validate` is not set — fully backwards compatible
+
 ### 2.3.0 / 2026-01-16
 
 * Adds min_size config option to enforce minimum UXID sizes (useful for test environments)

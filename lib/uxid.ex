@@ -34,6 +34,18 @@ defmodule UXID do
   alias UXID.{Codec, Encoder}
   alias UXID.Decoder
 
+  # Crockford Base32 alphabet (excludes I, L, O, U), in both cases. A UXID body
+  # is made up entirely of these characters.
+  @crockford_body ~r/\A[0-9ABCDEFGHJKMNPQRSTVWXYZabcdefghjkmnpqrstvwxyz]+\z/
+
+  # Canonical 36-character hyphenated UUID, any case. Identifiers that predate
+  # UXID adoption are stored as UUID strings and must remain castable.
+  @uuid_format ~r/\A[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\z/
+
+  # Shortest legitimate encoded body: a compact 40-bit timestamp with no
+  # randomness encodes to 8 characters.
+  @min_body_length 8
+
   @spec generate(opts :: options()) :: {:ok, __MODULE__.t()}
   @doc """
   Returns an encoded UXID string along with response status.
@@ -114,6 +126,69 @@ defmodule UXID do
     |> Decoder.process()
   end
 
+  @spec valid?(term(), keyword()) :: boolean()
+  @doc """
+  Returns `true` if the given value is a structurally valid UXID.
+
+  A valid UXID is a binary made up of an optional prefix, the delimiter, and a
+  Crockford Base32 body of at least #{@min_body_length} characters. This checks
+  *structure*, not authenticity: it cannot distinguish a generated UXID from an
+  arbitrary Base32 string of the same shape, and it deliberately does **not**
+  accept a bare UUID (see `cast/2`'s `:validate` mode for UUID coexistence).
+
+  ## Options
+
+    * `:prefix` - when present, the value must carry exactly this prefix. When
+      omitted, any prefix (or none) is accepted.
+    * `:delimiter` - the prefix delimiter (defaults to the configured
+      delimiter, see `default_delimiter/0`).
+
+  ## Examples
+
+      iex> UXID.valid?("cus_01emdgjf0dqxqj8fm78xe97y3h")
+      true
+
+      iex> UXID.valid?("cus_01emdgjf0dqxqj8fm78xe97y3h", prefix: "cus")
+      true
+
+      iex> UXID.valid?("cus_01emdgjf0dqxqj8fm78xe97y3h", prefix: "usr")
+      false
+
+      iex> UXID.valid?("nope!")
+      false
+  """
+  def valid?(term, opts \\ [])
+
+  def valid?(term, opts) when is_binary(term) do
+    delimiter = Keyword.get(opts, :delimiter, default_delimiter())
+    {prefix, body} = split_prefix(term, delimiter)
+
+    body_valid?(body) and prefix_ok?(prefix, Keyword.get(opts, :prefix))
+  end
+
+  def valid?(_term, _opts), do: false
+
+  defp body_valid?(body) do
+    String.length(body) >= @min_body_length and Regex.match?(@crockford_body, body)
+  end
+
+  defp prefix_ok?(_actual, nil), do: true
+  defp prefix_ok?(actual, expected), do: actual == expected
+
+  defp split_prefix(string, delimiter) do
+    case String.split(string, delimiter) do
+      [body] ->
+        {nil, body}
+
+      parts ->
+        {body, prefix_parts} = List.pop_at(parts, -1)
+        {Enum.join(prefix_parts, delimiter), body}
+    end
+  end
+
+  defp uuid_string?(term) when is_binary(term), do: Regex.match?(@uuid_format, term)
+  defp uuid_string?(_term), do: false
+
   # Define additional functions for custom Ecto type if Ecto is loaded
   if Code.ensure_loaded?(Ecto.ParameterizedType) do
     @behaviour Ecto.ParameterizedType
@@ -154,14 +229,40 @@ defmodule UXID do
 
     @doc """
     Casts the given input to the UXID ParameterizedType with the given parameters.
+
+    By default any binary is accepted unchanged (backwards compatible). When the
+    field opts in with `validate: true`, the value must be either a structurally
+    valid UXID carrying the field's configured `:prefix` (see `valid?/2`) or a
+    legacy bare UUID string; anything else casts to `:error`. UUID coexistence
+    can be turned off with `allow_uuid: false`.
+
+        field :owner_org_id, UXID, prefix: "org", validate: true
     """
-    def cast(data, _params) do
-      cast_binary(data)
+    def cast(data, params) do
+      if Map.get(params, :validate, false) do
+        cast_strict(data, params)
+      else
+        cast_binary(data)
+      end
     end
 
     defp cast_binary(nil), do: {:ok, nil}
     defp cast_binary(term) when is_binary(term), do: {:ok, term}
     defp cast_binary(_), do: :error
+
+    defp cast_strict(nil, _params), do: {:ok, nil}
+
+    defp cast_strict(term, params) when is_binary(term) do
+      opts = [prefix: Map.get(params, :prefix), delimiter: Map.get(params, :delimiter, default_delimiter())]
+
+      cond do
+        valid?(term, opts) -> {:ok, term}
+        Map.get(params, :allow_uuid, true) and uuid_string?(term) -> {:ok, term}
+        true -> :error
+      end
+    end
+
+    defp cast_strict(_term, _params), do: :error
 
     @doc """
     Loads the given term into a UXID.

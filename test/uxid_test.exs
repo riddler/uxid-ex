@@ -54,4 +54,34 @@ defmodule UXIDTest do
       assert :error = UXID.cast(:atom, %{})
     end
   end
+
+  describe "valid?/2" do
+    test "accepts generated UXIDs, with and without a prefix" do
+      assert UXID.valid?(UXID.generate!())
+      assert UXID.valid?(UXID.generate!(prefix: "cus"))
+      assert UXID.valid?(UXID.generate!(prefix: "cus"), prefix: "cus")
+    end
+
+    test "enforces a required prefix" do
+      refute UXID.valid?(UXID.generate!(prefix: "cus"), prefix: "usr")
+      refute UXID.valid?(UXID.generate!(), prefix: "usr")
+    end
+
+    test "rejects non-Crockford, too-short, and non-binary values" do
+      refute UXID.valid?("")
+      refute UXID.valid?("short")
+      refute UXID.valid?("cus_!!!")
+      refute UXID.valid?(nil)
+      refute UXID.valid?(123)
+    end
+
+    test "does not treat a bare UUID as a valid UXID" do
+      refute UXID.valid?("550e8400-e29b-41d4-a716-446655440000")
+    end
+
+    test "honors a custom delimiter" do
+      id = UXID.generate!(prefix: "cus", delimiter: "-")
+      assert UXID.valid?(id, prefix: "cus", delimiter: "-")
+    end
+  end
 end

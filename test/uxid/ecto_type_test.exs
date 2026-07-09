@@ -34,6 +34,54 @@ defmodule UXID.EctoTypeTest do
       assert :error = UXID.cast(1, %{})
       assert :error = UXID.cast(:atom, %{})
     end
+
+    test "without :validate, any binary passes through unchanged" do
+      assert {:ok, "anything at all"} = UXID.cast("anything at all", %{prefix: "org"})
+    end
+  end
+
+  describe "cast/2 in strict :validate mode" do
+    @strict %{validate: true, prefix: "org"}
+
+    test "accepts a well-formed UXID carrying the configured prefix" do
+      uxid = UXID.generate!(prefix: "org")
+      assert {:ok, ^uxid} = UXID.cast(uxid, @strict)
+    end
+
+    test "accepts a legacy bare UUID string (coexistence)" do
+      uuid = "550e8400-e29b-41d4-a716-446655440000"
+      assert {:ok, ^uuid} = UXID.cast(uuid, @strict)
+    end
+
+    test "accepts nil" do
+      assert {:ok, nil} = UXID.cast(nil, @strict)
+    end
+
+    test "rejects a value carrying the wrong prefix" do
+      wrong = UXID.generate!(prefix: "usr")
+      assert :error = UXID.cast(wrong, @strict)
+    end
+
+    test "rejects malformed strings" do
+      assert :error = UXID.cast("", @strict)
+      assert :error = UXID.cast("org_", @strict)
+      assert :error = UXID.cast("org_!!!bad", @strict)
+      assert :error = UXID.cast("not-an-id", @strict)
+    end
+
+    test "rejects non-binary values" do
+      assert :error = UXID.cast(123, @strict)
+    end
+
+    test "allow_uuid: false rejects legacy UUIDs" do
+      uuid = "550e8400-e29b-41d4-a716-446655440000"
+      assert :error = UXID.cast(uuid, %{validate: true, prefix: "org", allow_uuid: false})
+    end
+
+    test "with :validate but no configured prefix, any well-formed UXID passes" do
+      uxid = UXID.generate!(prefix: "anything")
+      assert {:ok, ^uxid} = UXID.cast(uxid, %{validate: true})
+    end
   end
 
   describe "type/1" do

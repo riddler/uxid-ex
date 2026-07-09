@@ -14,7 +14,10 @@ defmodule UXID.MixProject do
     {:ecto, "~> 3.12", optional: true},
 
     # Development, Documentation, Testing, ...
+    {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
     {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
+    {:excoveralls, "~> 0.18.5", only: :test},
+    {:ex_quality, "~> 0.6", only: :dev, runtime: false},
     {:ex_doc, "~> 0.23", only: :dev},
     {:benchee, "~> 1.0", only: :dev},
     {:benchee_html, "~> 1.0", only: :dev},
@@ -41,6 +44,14 @@ defmodule UXID.MixProject do
 
       # Exclude optional dependencies
       xref: [exclude: Ecto.ParameterizedType],
+
+      # Dialyzer: cache the PLT in-repo (CI-friendly) and include the optional
+      # Ecto app so the ParameterizedType behaviour callbacks type-check.
+      dialyzer: [
+        plt_local_path: "priv/plts",
+        plt_core_path: "priv/plts",
+        plt_add_apps: [:ecto, :mix]
+      ],
 
       # Docs
       source_url: @source_url,

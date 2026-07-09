@@ -21,11 +21,12 @@ defmodule UXID do
   @type option ::
           {:case, atom()}
           | {:time, integer()}
-          | {:size, atom()}
-          | {:rand_size, integer()}
-          | {:prefix, String.t()}
-          | {:delimiter, String.t()}
-          | {:monotonic, boolean() | [atom()]}
+          | {:size, atom() | nil}
+          | {:rand_size, integer() | nil}
+          | {:prefix, String.t() | nil}
+          | {:delimiter, String.t() | nil}
+          | {:compact_time, boolean() | nil}
+          | {:monotonic, boolean() | [atom()] | nil}
 
   @type options :: [option()]
 
@@ -133,7 +134,7 @@ defmodule UXID do
   """
   def monotonic(), do: Application.get_env(:uxid, :monotonic, false)
 
-  @spec decode(String.t()) :: {:ok, %Codec{}}
+  @spec decode(String.t()) :: {:ok, Codec.t()}
   @doc """
   Decodes a UXID string and returns a Codec struct with extracted components.
   """
@@ -204,8 +205,9 @@ defmodule UXID do
     end
   end
 
+  # Only ever called on a binary (cast_strict/2 guards is_binary before calling),
+  # so no non-binary clause is needed — the guard documents that contract.
   defp uuid_string?(term) when is_binary(term), do: Regex.match?(@uuid_format, term)
-  defp uuid_string?(_term), do: false
 
   # Define additional functions for custom Ecto type if Ecto is loaded
   if Code.ensure_loaded?(Ecto.ParameterizedType) do

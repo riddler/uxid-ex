@@ -2,7 +2,7 @@ defmodule UXID.DecoderTest do
   use ExUnit.Case, async: true
   import Bitwise
 
-  alias UXID.{Decoder, Codec}
+  alias UXID.{Codec, Decoder}
 
   describe "process/1 +" do
     test "Returns a decoded uxid struct from generated uxid" do

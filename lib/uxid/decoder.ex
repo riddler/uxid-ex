@@ -6,7 +6,20 @@ defmodule UXID.Decoder do
 
   alias UXID.Codec
 
-  @spec process(Codec.t()) :: {:ok, Codec.t()} | {:error, String.t()}
+  # Encoded body length -> {size, compact_time?}. Compact mode produces bodies
+  # one character shorter than standard for small/large/xlarge.
+  @size_by_length %{
+    10 => {:xsmall, false},
+    13 => {:small, true},
+    14 => {:small, false},
+    18 => {:medium, false},
+    21 => {:large, true},
+    22 => {:large, false},
+    25 => {:xlarge, true},
+    26 => {:xlarge, false}
+  }
+
+  @spec process(Codec.t()) :: {:ok, Codec.t()}
   def process(%Codec{} = struct) do
     decoded =
       struct
@@ -47,21 +60,8 @@ defmodule UXID.Decoder do
   end
 
   def decode_size(%Codec{encoded: encoded} = struct) when is_binary(encoded) do
-    # Infer size AND compact mode from total encoded length
-    # Compact mode produces 1 char shorter lengths for small/large/xlarge
-    {size, compact} =
-      case String.length(encoded) do
-        10 -> {:xsmall, false}
-        13 -> {:small, true}
-        14 -> {:small, false}
-        18 -> {:medium, false}
-        21 -> {:large, true}
-        22 -> {:large, false}
-        25 -> {:xlarge, true}
-        26 -> {:xlarge, false}
-        _ -> {:unknown, false}
-      end
-
+    # Infer size and compact mode from total encoded length.
+    {size, compact} = Map.get(@size_by_length, String.length(encoded), {:unknown, false})
     %{struct | size: size, compact_time: compact}
   end
 

@@ -25,6 +25,7 @@ defmodule UXID do
           | {:rand_size, integer()}
           | {:prefix, String.t()}
           | {:delimiter, String.t()}
+          | {:monotonic, boolean() | [atom()]}
 
   @type options :: [option()]
 
@@ -76,11 +77,13 @@ defmodule UXID do
     size = Keyword.get(opts, :size)
     delimiter = Keyword.get(opts, :delimiter)
     compact_time = Keyword.get(opts, :compact_time)
+    monotonic = Keyword.get(opts, :monotonic)
     timestamp = Keyword.get(opts, :time, System.system_time(:millisecond))
 
     %Codec{
       case: case,
       compact_time: compact_time,
+      monotonic: monotonic,
       prefix: prefix,
       rand_size: rand_size,
       size: size,
@@ -114,6 +117,21 @@ defmodule UXID do
   K-sortability is maintained until ~September 2039.
   """
   def compact_small_times(), do: Application.get_env(:uxid, :compact_small_times, false)
+
+  @doc """
+  Returns the global monotonic generation policy.
+
+  When active, the random field is treated as a big-endian counter: the first
+  ID in a millisecond is seeded from the CSPRNG and each subsequent same-ms ID
+  increments by 1 (per process, per prefix). This guarantees uniqueness and
+  K-sortability within a burst at the cost of making consecutive IDs guessable,
+  which is why it is off by default and opt-in per resource.
+
+  Accepts `true`/`false`, or a list of sizes (alias-aware, e.g. `[:small]`
+  matches both `:small` and `:s`). Overridable per-call/per-field with the
+  `monotonic` option. See `UXID.Monotonic`.
+  """
+  def monotonic(), do: Application.get_env(:uxid, :monotonic, false)
 
   @spec decode(String.t()) :: {:ok, %Codec{}}
   @doc """
@@ -195,6 +213,11 @@ defmodule UXID do
 
     @doc """
     Generates a loaded version of the UXID.
+
+    Field options are threaded through to `generate!/1`, including `monotonic`
+    for opt-in monotonic generation:
+
+        field :id, UXID, autogenerate: true, prefix: "evt", size: :small, monotonic: true
     """
     def autogenerate(opts) do
       case = Map.get(opts, :case, encode_case())
@@ -203,6 +226,7 @@ defmodule UXID do
       rand_size = Map.get(opts, :rand_size)
       delimiter = Map.get(opts, :delimiter)
       compact_time = Map.get(opts, :compact_time)
+      monotonic = Map.get(opts, :monotonic)
 
       __MODULE__.generate!(
         case: case,
@@ -210,7 +234,8 @@ defmodule UXID do
         size: size,
         rand_size: rand_size,
         delimiter: delimiter,
-        compact_time: compact_time
+        compact_time: compact_time,
+        monotonic: monotonic
       )
     end
 
@@ -253,7 +278,10 @@ defmodule UXID do
     defp cast_strict(nil, _params), do: {:ok, nil}
 
     defp cast_strict(term, params) when is_binary(term) do
-      opts = [prefix: Map.get(params, :prefix), delimiter: Map.get(params, :delimiter, default_delimiter())]
+      opts = [
+        prefix: Map.get(params, :prefix),
+        delimiter: Map.get(params, :delimiter, default_delimiter())
+      ]
 
       cond do
         valid?(term, opts) -> {:ok, term}

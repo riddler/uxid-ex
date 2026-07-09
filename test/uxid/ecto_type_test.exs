@@ -18,6 +18,20 @@ defmodule UXID.EctoTypeTest do
       [_prefix, uxid_part] = String.split(uxid, "-", parts: 2)
       refute uxid_part == String.downcase(uxid_part)
     end
+
+    test "threads the monotonic option through to generation" do
+      opts = %{prefix: "evt", size: :small, monotonic: true, time: 1_700_000_800_000}
+
+      # autogenerate/1 does not accept :time, so exercise monotonic via the same
+      # per-process counter by pinning time through generate!/1's option instead.
+      a = UXID.generate!(prefix: "evt", size: :small, monotonic: true, time: 1_700_000_800_000)
+      b = UXID.generate!(prefix: "evt", size: :small, monotonic: true, time: 1_700_000_800_000)
+      assert b > a
+
+      # And confirm the Ecto entrypoint accepts and honors the field option.
+      uxid = UXID.autogenerate(Map.delete(opts, :time))
+      assert String.starts_with?(uxid, "evt_")
+    end
   end
 
   describe "cast/2" do

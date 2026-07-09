@@ -26,6 +26,7 @@ defmodule UXID.Encoder do
       struct
       |> ensure_time()
       |> ensure_min_size()
+      |> resolve_monotonic()
       |> ensure_compact_time()
       |> ensure_rand_size()
       |> ensure_rand()
@@ -52,14 +53,58 @@ defmodule UXID.Encoder do
     end
   end
 
+  # Resolve the raw monotonic setting (per-call option, or the global policy when
+  # unset) into a concrete boolean for the effective size. Runs after
+  # ensure_min_size so list-form matching uses the size actually emitted, and
+  # before ensure_compact_time so it can auto-enable compact mode for :xs.
+  defp resolve_monotonic(%Codec{monotonic: setting, size: size} = uxid) do
+    resolved =
+      case setting do
+        nil -> monotonic_active?(UXID.monotonic(), size)
+        _ -> monotonic_active?(setting, size)
+      end
+
+    %{uxid | monotonic: resolved}
+  end
+
+  # Canonical size aliases so list-form monotonic config matches both spellings.
+  @canonical %{
+    xs: :xs,
+    xsmall: :xs,
+    s: :s,
+    small: :s,
+    m: :m,
+    medium: :m,
+    l: :l,
+    large: :l,
+    xl: :xl,
+    xlarge: :xl
+  }
+
+  # nil/unknown sizes canonicalize to the default (:xl).
+  defp canon(size), do: Map.get(@canonical, size, :xl)
+
+  defp monotonic_active?(true, _size), do: true
+
+  defp monotonic_active?(list, size) when is_list(list),
+    do: canon(size) in Enum.map(list, &canon/1)
+
+  defp monotonic_active?(_falsey, _size), do: false
+
   defp ensure_compact_time(%Codec{compact_time: explicit} = uxid) when not is_nil(explicit) do
     # Explicit per-call setting - use it regardless of size
     uxid
   end
 
-  defp ensure_compact_time(%Codec{compact_time: nil, size: size} = uxid) do
-    # No explicit setting - apply global policy only for small sizes
-    compact = UXID.compact_small_times() && size in [:xs, :xsmall, :s, :small]
+  defp ensure_compact_time(%Codec{compact_time: nil, size: size, monotonic: mono} = uxid) do
+    # No explicit setting - apply the global small-times policy, OR force compact
+    # on for monotonic :xs/:xsmall so there is a 1-byte field to seed/increment
+    # (standard :xs has 0 random bits, nothing to count). resolve_monotonic has
+    # already reduced `mono` to a boolean at this point.
+    compact =
+      (UXID.compact_small_times() && size in [:xs, :xsmall, :s, :small]) ||
+        (mono && size in [:xs, :xsmall])
+
     %{uxid | compact_time: compact}
   end
 
@@ -131,6 +176,25 @@ defmodule UXID.Encoder do
     do: %{uxid | rand_size: @default_rand_size}
 
   defp ensure_rand_size(uxid), do: uxid
+
+  # Explicit compact_time: false on :xs/:xsmall leaves 0 random bits — the only
+  # way to reach monotonic with no field to increment. That is a genuine
+  # contradiction; raise rather than silently emit a non-incrementing ID.
+  defp ensure_rand(%Codec{monotonic: true, rand_size: 0}),
+    do:
+      raise(
+        ArgumentError,
+        "monotonic mode needs a random field, but compact_time: false on :xs/:xsmall " <>
+          "leaves none — omit compact_time (it is enabled automatically) or use a larger size"
+      )
+
+  defp ensure_rand(
+         %Codec{monotonic: true, prefix: prefix, rand_size: rand_size, time: time, rand: nil} =
+           uxid
+       ) do
+    {time, rand} = UXID.Monotonic.next(prefix, rand_size, time)
+    %{uxid | time: time, rand: rand}
+  end
 
   defp ensure_rand(%Codec{rand_size: rand_size, rand: nil} = uxid),
     do: %{uxid | rand: :crypto.strong_rand_bytes(rand_size)}
@@ -218,13 +282,9 @@ defmodule UXID.Encoder do
     time_encoded -> time_encoded
   end
 
-  defp encode_rand(%Codec{case: case, rand_size: rand_size, rand_encoded: nil} = uxid) do
-    string =
-      rand_size
-      |> :crypto.strong_rand_bytes()
-      |> encode_rand(case)
-
-    %{uxid | rand_encoded: string}
+  defp encode_rand(%Codec{case: case, rand: rand, rand_encoded: nil} = uxid)
+       when is_binary(rand) do
+    %{uxid | rand_encoded: encode_rand(rand, case)}
   end
 
   # Encode with 10 bytes of randomness (80 bits)

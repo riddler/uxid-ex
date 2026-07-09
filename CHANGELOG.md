@@ -1,5 +1,12 @@
 ### Upcoming
 
+* Adds opt-in monotonic generation via the `monotonic` option (per-call/per-field) or `config :uxid, :monotonic` global policy:
+  - Accepts `true`/`false`, or a list of sizes (alias-aware, e.g. `[:small]` matches both `:small` and `:s`)
+  - Within a millisecond the random field is seeded once then incremented by 1, guaranteeing uniqueness and K-sortability for a burst — process-local, `async: true` safe, no GenServer/ETS
+  - Per-call option takes precedence over the global policy; off by default (consecutive IDs become guessable, weakening enumeration resistance)
+  - `:xs`/`:xsmall` auto-enable `compact_time` so there is a field to increment; explicit `compact_time: false` on those sizes with monotonic on raises
+  - Wire format is byte-identical to a random UXID — no decoder changes
+
 ### 2.4.0 / 2026-07-09
 
 * Adds `UXID.valid?/2` for structural validation of a UXID string (optional `:prefix` and `:delimiter`)

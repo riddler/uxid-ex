@@ -181,11 +181,18 @@ Standard UXIDs draw fresh randomness for every ID, so collision risk within a
 single millisecond is a birthday problem — for small sizes (`:xsmall` has 0
 random bits, `:small` has 16) a burst of same-millisecond IDs can collide.
 Monotonic mode fixes this the way the ULID monotonic spec does: within a
-millisecond it seeds the random field once from the CSPRNG, then **increments by
-1** for each subsequent ID. That turns "birthday collision among N draws" into
-"guaranteed distinct for up to 2^bits draws," and because the field is encoded
-big-endian, incrementing also sorts strictly after — K-sortability is preserved
-at every size.
+millisecond it seeds the random field once from the CSPRNG, then advances it by a
+**random positive step** for each subsequent ID. That turns "birthday collision
+among N draws" into "guaranteed distinct until the field overflows," and because
+the field is encoded big-endian, a strictly increasing counter also sorts
+strictly after — K-sortability is preserved at every size.
+
+The step is uniform over `[1, 2^(bits/2)]` (the square root of the field space,
+auto-derived from the size — no configuration). Stepping by a random amount
+instead of exactly `+1` means an attacker who sees `…0004` can no longer guess
+`…0005`: single-shot guess cost rises from certainty to `~1/2^(bits/2)` (1/256 at
+`:small`, ~1/10⁶ at `:medium`), while still leaving ample same-ms burst headroom
+before overflow (~512 IDs/ms at `:small`, ~2M at `:medium`).
 
 ```elixir
 # Per-call: on for all sizes
@@ -216,10 +223,13 @@ process*. State lives in the process dictionary (keyed by prefix and field size)
 process gets an independent random starting point per millisecond, so
 cross-process collisions fall back to a birthday probability on the field size.
 
-**Tradeoff (why it is opt-in):** consecutive burst IDs differ by `+1` in the low
-bits — i.e. guessable. That weakens the "secure against enumeration attacks"
-property, so monotonic must be a conscious per-resource choice and is never a
-silent default.
+**Tradeoff (why it is opt-in):** the random step is a *mitigation, not
+cryptographic unpredictability*. It removes trivial `+1` enumeration, but an
+attacker who observes two consecutive same-ms IDs learns the actual gap, and
+values still lie in a bounded window ahead. Low-entropy sizes stay low-entropy,
+so monotonic must be a conscious per-resource choice and is never a silent
+default — don't use `:small`/`:medium` monotonic IDs as externally-enumerable,
+security-sensitive identifiers; prefer `:large`/`:xl` (and non-monotonic) there.
 
 **`:xs`/`:xsmall` note:** a standard `:xs` has 0 random bits — nothing to
 increment — so when monotonic is active `compact_time` is enabled automatically

@@ -124,9 +124,10 @@ defmodule UXID do
 
   When active, the random field is treated as a big-endian counter: the first
   ID in a millisecond is seeded from the CSPRNG and each subsequent same-ms ID
-  increments by 1 (per process, per prefix). This guarantees uniqueness and
-  K-sortability within a burst at the cost of making consecutive IDs guessable,
-  which is why it is off by default and opt-in per resource.
+  advances it by a random positive step (per process, per prefix). This
+  guarantees uniqueness and K-sortability within a burst while keeping
+  consecutive IDs within a bounded window ahead — a mitigation, not cryptographic
+  unpredictability — which is why it is off by default and opt-in per resource.
 
   Accepts `true`/`false`, or a list of sizes (alias-aware, e.g. `[:small]`
   matches both `:small` and `:s`). Overridable per-call/per-field with the

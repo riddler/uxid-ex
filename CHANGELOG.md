@@ -2,8 +2,8 @@
 
 * Adds opt-in monotonic generation via the `monotonic` option (per-call/per-field) or `config :uxid, :monotonic` global policy:
   - Accepts `true`/`false`, or a list of sizes (alias-aware, e.g. `[:small]` matches both `:small` and `:s`)
-  - Within a millisecond the random field is seeded once then incremented by 1, guaranteeing uniqueness and K-sortability for a burst — process-local, `async: true` safe, no GenServer/ETS
-  - Per-call option takes precedence over the global policy; off by default (consecutive IDs become guessable, weakening enumeration resistance)
+  - Within a millisecond the random field is seeded once then advanced by a random positive step (uniform over `[1, 2^(bits/2)]`, drawn from the CSPRNG), guaranteeing uniqueness and K-sortability for a burst — process-local, `async: true` safe, no GenServer/ETS
+  - Per-call option takes precedence over the global policy; off by default (consecutive IDs stay in a bounded window — a mitigation, not cryptographic unpredictability — weakening enumeration resistance)
   - `:xs`/`:xsmall` auto-enable `compact_time` so there is a field to increment; explicit `compact_time: false` on those sizes with monotonic on raises
   - Wire format is byte-identical to a random UXID — no decoder changes
 

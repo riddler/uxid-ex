@@ -1,6 +1,8 @@
 defmodule UXID.MonotonicTest do
   use ExUnit.Case, async: true
 
+  import Bitwise
+
   alias UXID.Monotonic
 
   describe "next/3" do
@@ -10,11 +12,16 @@ defmodule UXID.MonotonicTest do
       assert byte_size(rand) == 2
     end
 
-    test "increments by 1 within the same millisecond" do
+    test "advances by a positive step within the same millisecond" do
       {_t, r1} = Monotonic.next("evt", 3, 5000)
       {_t, r2} = Monotonic.next("evt", 3, 5000)
 
-      assert :binary.decode_unsigned(r2) == :binary.decode_unsigned(r1) + 1
+      # Random step is in [1, 2^12] for a 3-byte field: strictly greater, and
+      # within the forward step window (never a full reseed within the ms).
+      u1 = :binary.decode_unsigned(r1)
+      u2 = :binary.decode_unsigned(r2)
+      assert u2 > u1
+      assert (u2 - u1) in 1..(1 <<< 12)
       assert r2 > r1
     end
 
@@ -29,36 +36,55 @@ defmodule UXID.MonotonicTest do
       assert rands == Enum.sort(rands)
     end
 
-    test "reseeds (does not just +1) when the millisecond advances" do
+    test "steps vary and stay within [1, 2^(bits/2)] (not a constant +1)" do
+      # 2-byte field: step_bits = 8, so gaps lie in [1, 256]. A constant +1 would
+      # be the old guessable behavior; over 50 draws at least one gap must exceed 1.
+      ints =
+        for _ <- 1..50 do
+          {_t, r} = Monotonic.next("vary", 2, 90_000)
+          :binary.decode_unsigned(r)
+        end
+
+      gaps = Enum.zip(ints, tl(ints)) |> Enum.map(fn {a, b} -> b - a end)
+
+      assert Enum.all?(gaps, &(&1 in 1..256))
+      assert Enum.any?(gaps, &(&1 > 1))
+    end
+
+    test "reseeds (does not continue the step sequence) when the millisecond advances" do
       {_t, r1} = Monotonic.next("seed", 4, 10_000)
       {_t, r2} = Monotonic.next("seed", 4, 10_001)
 
-      # A fresh 32-bit seed landing exactly on r1 + 1 is a 1-in-2^32 event.
-      refute :binary.decode_unsigned(r2) == :binary.decode_unsigned(r1) + 1
+      u1 = :binary.decode_unsigned(r1)
+      u2 = :binary.decode_unsigned(r2)
+
+      # Continuing would land in the forward step window (u1, u1 + 2^16]. A fresh
+      # 32-bit seed doing so is a ~1-in-2^16 event, so treat it as a reseed.
+      refute u2 in (u1 + 1)..(u1 + (1 <<< 16))
     end
 
-    test "clock moving backward keeps the last time and still increments" do
+    test "clock moving backward keeps the last time and still advances" do
       {t1, r1} = Monotonic.next("back", 3, 20_000)
       {t2, r2} = Monotonic.next("back", 3, 19_995)
 
       assert t2 == t1
-      assert :binary.decode_unsigned(r2) == :binary.decode_unsigned(r1) + 1
+      assert :binary.decode_unsigned(r2) > :binary.decode_unsigned(r1)
     end
 
     test "overflow within a ms spins the time forward and reseeds" do
-      # 1-byte field = 256 values (0..255).
+      # 1-byte field = 256 values; random steps of [1, 16] exhaust it within a
+      # few dozen draws. Draw until the time bumps forward.
       time = 30_000
-      {^time, first} = Monotonic.next("of", 1, time)
-      start = :binary.decode_unsigned(first)
 
-      # Exhaust the remaining capacity of the field within this ms.
-      for _ <- 1..(255 - start) do
-        {^time, _} = Monotonic.next("of", 1, time)
-      end
+      bumped =
+        Enum.reduce_while(1..1000, nil, fn _, _ ->
+          case Monotonic.next("of", 1, time) do
+            {^time, _} -> {:cont, nil}
+            {t, _} when t > time -> {:halt, t}
+          end
+        end)
 
-      # The next call overflows: time bumps forward, field reseeds.
-      {bumped_time, _reseeded} = Monotonic.next("of", 1, time)
-      assert bumped_time == time + 1
+      assert bumped == time + 1
     end
 
     test "distinct prefixes maintain independent sequences" do
@@ -66,8 +92,8 @@ defmodule UXID.MonotonicTest do
       {_t, b} = Monotonic.next("b", 2, 40_000)
       {_t, a2} = Monotonic.next("a", 2, 40_000)
 
-      assert :binary.decode_unsigned(a2) == :binary.decode_unsigned(a) + 1
-      # b's sequence is unaffected by a's increments.
+      assert :binary.decode_unsigned(a2) > :binary.decode_unsigned(a)
+      # b's sequence is unaffected by a's advances.
       assert byte_size(b) == 2
     end
 
@@ -82,7 +108,7 @@ defmodule UXID.MonotonicTest do
     test "nil prefix is a valid, independent sequence" do
       {_t, r1} = Monotonic.next(nil, 2, 60_000)
       {_t, r2} = Monotonic.next(nil, 2, 60_000)
-      assert :binary.decode_unsigned(r2) == :binary.decode_unsigned(r1) + 1
+      assert :binary.decode_unsigned(r2) > :binary.decode_unsigned(r1)
     end
   end
 
@@ -116,8 +142,10 @@ defmodule UXID.MonotonicTest do
           1000 -> flunk("child process did not respond")
         end
 
-      # The child starts its own sequence — it is not r1 + 1.
-      refute :binary.decode_unsigned(child) == :binary.decode_unsigned(r1) + 1
+      # The child starts its own sequence (a fresh seed), not a continuation of
+      # the parent's — so it does not land in the parent's forward step window.
+      u1 = :binary.decode_unsigned(r1)
+      refute :binary.decode_unsigned(child) in (u1 + 1)..(u1 + (1 <<< 8))
     end
   end
 
@@ -127,6 +155,17 @@ defmodule UXID.MonotonicTest do
   defp rand_int(opts) do
     {:ok, codec} = UXID.new(opts)
     :binary.decode_unsigned(codec.rand)
+  end
+
+  # Decides whether `opts` yields a monotonic sequence. A monotonic same-ms burst
+  # is always strictly increasing and unique; a random one is sorted only by
+  # chance (~1/n!). A 20-draw burst makes false positives ~1/20! — effectively
+  # zero — so this reliably distinguishes random-step monotonic from pure random,
+  # which a single `> ` pair (~50%) cannot. All draws share one ms; the field
+  # sizes here never overflow in 20 steps, so the raw rand ints stay ordered.
+  defp monotonic?(opts) do
+    ints = for _ <- 1..20, do: rand_int(opts)
+    ints == Enum.sort(ints) and length(Enum.uniq(ints)) == 20
   end
 
   describe "monotonic generation via generate!/1" do
@@ -149,12 +188,13 @@ defmodule UXID.MonotonicTest do
       assert ids == Enum.sort(ids)
     end
 
-    test "a new millisecond reseeds instead of continuing the +1 sequence" do
+    test "a new millisecond reseeds instead of continuing the step sequence" do
       first = rand_int(size: :medium, time: 1_700_000_100_000, monotonic: true)
       later = rand_int(size: :medium, time: 1_700_000_100_001, monotonic: true)
 
-      # A fresh 40-bit seed landing exactly on first + 1 is a 1-in-2^40 event.
-      refute later == first + 1
+      # Continuing would land in the forward step window (first, first + 2^20]. A
+      # fresh 40-bit seed doing so is a ~1-in-2^20 event, so treat it as a reseed.
+      refute later in (first + 1)..(first + (1 <<< 20))
     end
 
     test "clock moving backward still increases and never emits a smaller time" do
@@ -165,11 +205,8 @@ defmodule UXID.MonotonicTest do
       assert c2.string > c1.string
     end
 
-    test "non-monotonic generation is unaffected (no exact +1 relationship)" do
-      t = 1_700_000_300_000
-      a = rand_int(size: :medium, time: t)
-      b = rand_int(size: :medium, time: t)
-      refute b == a + 1
+    test "non-monotonic generation is unaffected (not a monotonic sequence)" do
+      refute monotonic?(size: :medium, time: 1_700_000_300_000)
     end
   end
 
@@ -215,19 +252,9 @@ defmodule UXID.MonotonicTest do
 
   describe "monotonic list config (alias-aware)" do
     test "[:small] applies to both :small and :s but not :medium" do
-      t = 1_700_000_600_000
-
-      small_a = rand_int(size: :small, time: t, monotonic: [:small])
-      small_b = rand_int(size: :small, time: t, monotonic: [:small])
-      assert small_b == small_a + 1
-
-      s_a = rand_int(size: :s, time: t, monotonic: [:small])
-      s_b = rand_int(size: :s, time: t, monotonic: [:small])
-      assert s_b == s_a + 1
-
-      med_a = rand_int(size: :medium, time: t, monotonic: [:small])
-      med_b = rand_int(size: :medium, time: t, monotonic: [:small])
-      refute med_b == med_a + 1
+      assert monotonic?(size: :small, time: 1_700_000_600_000, monotonic: [:small])
+      assert monotonic?(size: :s, time: 1_700_000_600_001, monotonic: [:small])
+      refute monotonic?(size: :medium, time: 1_700_000_600_002, monotonic: [:small])
     end
   end
 
@@ -236,35 +263,24 @@ defmodule UXID.MonotonicTest do
       Application.put_env(:uxid, :monotonic, true)
       on_exit(fn -> Application.delete_env(:uxid, :monotonic) end)
 
-      t = 1_700_000_700_000
-      a = rand_int(size: :medium, time: t, monotonic: false)
-      b = rand_int(size: :medium, time: t, monotonic: false)
-      refute b == a + 1
+      refute monotonic?(size: :medium, time: 1_700_000_700_000, monotonic: false)
     end
 
     test "per-call monotonic: true applies when global is off" do
       Application.put_env(:uxid, :monotonic, false)
       on_exit(fn -> Application.delete_env(:uxid, :monotonic) end)
 
-      t = 1_700_000_700_001
-      a = rand_int(size: :medium, time: t, monotonic: true)
-      b = rand_int(size: :medium, time: t, monotonic: true)
-      assert b == a + 1
+      assert monotonic?(size: :medium, time: 1_700_000_700_001, monotonic: true)
     end
 
     test "global list config applies alias-aware when no per-call option is given" do
       Application.put_env(:uxid, :monotonic, [:small, :medium])
       on_exit(fn -> Application.delete_env(:uxid, :monotonic) end)
 
-      t = 1_700_000_700_002
-      a = rand_int(size: :m, time: t)
-      b = rand_int(size: :m, time: t)
-      assert b == a + 1
+      assert monotonic?(size: :m, time: 1_700_000_700_002)
 
       # A size outside the list is unaffected.
-      la = rand_int(size: :large, time: t)
-      lb = rand_int(size: :large, time: t)
-      refute lb == la + 1
+      refute monotonic?(size: :large, time: 1_700_000_700_003)
     end
   end
 end

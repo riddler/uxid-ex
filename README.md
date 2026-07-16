@@ -240,6 +240,106 @@ explicit `compact_time: false` on `:xs`/`:xsmall` with monotonic on raises an
 sorting are unaffected, but decoding the timestamp back out of a monotonic `:xs`
 is unreliable.
 
+## Prefix Registry
+
+A prefix only pays off — "the ID names its resource on sight" — when it is
+globally unique and well-formed across your whole app. `UXID.Registry` is an
+opt-in, compile-time DSL that makes those guarantees the compiler's job instead
+of a hand-rolled CI test, and turns the same declarations into a runtime
+routing table (prefix → schema) for the ID-driven patterns Adam Kirk describes
+in his ElixirConf US 2025 talk, [_UXIDs in Elixir/Ecto_][uxid_talk_url]
+(authorization/IDOR checks, admin auto-linking, Relay global IDs).
+
+Declare one registry module as your single source of truth:
+
+```elixir
+defmodule MyApp.IDs do
+  use UXID.Registry,
+    default_size: :medium,
+    default_validate: true
+
+  defid :org,     prefix: "org",     schema: MyApp.Org,         category: :account
+  defid :contact, prefix: "contact", size: :large, schema: MyApp.CRM.Contact
+  defid :lead,    prefix: "lead"
+  retired "usr" # reserve a prefix so it stays unique-checked, never reused
+end
+```
+
+**Compile-time guarantees.** Every prefix is checked against `:prefix_format`
+(overridable; the default permits an internal underscore for compound prefixes
+like `in_ref`), and all prefixes — active *and* `retired` — are checked for
+uniqueness. A malformed or duplicate prefix is a compile error, so the governance
+every prefixed-ID scheme needs ships in the library.
+
+**By key** — minting and schema configuration:
+
+```elixir
+MyApp.IDs.generate!(:org)   # => "org_01h…"
+MyApp.IDs.prefix(:org)      # => "org"
+MyApp.IDs.size(:org)        # => :medium
+MyApp.IDs.schema(:org)      # => MyApp.Org
+MyApp.IDs.all()             # => [%{key: :org, prefix: "org", schema: MyApp.Org, ...}, ...]
+```
+
+`field_opts/1` is the single-source-of-truth hook — a schema spreads it instead
+of restating prefix/size/validate anywhere:
+
+```elixir
+@primary_key {:id, UXID, [autogenerate: true] ++ MyApp.IDs.field_opts(:org)}
+```
+
+**By ID string** — the runtime routing table (the "which resource is this?" map):
+
+```elixir
+MyApp.IDs.known?("org_01h…")      # => true   (cheap prefix-only membership check)
+MyApp.IDs.key_for("org_01h…")     # => :org
+MyApp.IDs.schema_for("org_01h…")  # => MyApp.Org
+MyApp.IDs.resolve("org_01h…")     # => %{key: :org, schema: MyApp.Org, category: :account, ...}
+```
+
+Lookups split an ID on the **last** delimiter, which is unambiguous without any
+registry lookup because a UXID body is Crockford Base32 and never contains the
+delimiter — so `in_ref_01h…` recovers the `in_ref` prefix cleanly. For that
+reason the `:delimiter` must be a character that cannot appear in a Base32 body
+(`"_"` — the default — or `"-"`); an underscore is preferred for compound
+prefixes since it does not break double-click-to-select-the-whole-id.
+
+### Sharing the registry across sources (JSON manifest)
+
+UXIDs are source-agnostic — you can mint them in Postgres with `INSERT ... SELECT`
+or on a mobile/JS client that generates an ID offline before upload. To keep the
+Elixir registry the single source of truth in those places too, export a JSON
+manifest and let the other runtime read it:
+
+```elixir
+MyApp.IDs.manifest()
+# => [%{"key" => "org", "prefix" => "org", "size" => "medium", "category" => "account"}, ...]
+
+MyApp.IDs.manifest_json()
+# => ~s([{"key":"org","prefix":"org","size":"medium","category":"account"}, ...])
+```
+
+`manifest/0` returns plain JSON-safe data (string keys, scalar values, `nil` for
+unset fields) that you can hand to any JSON library; `manifest_json/0` returns a
+ready-to-write string with no extra dependency. A common pattern is a tiny Mix
+task or release step that writes it to a file your database migrations or client
+build consume, so every generator agrees on prefixes and sizes:
+
+```elixir
+# lib/mix/tasks/uxid.manifest.ex
+defmodule Mix.Tasks.Uxid.Manifest do
+  use Mix.Task
+  @shortdoc "Writes the UXID prefix manifest to priv/uxid_manifest.json"
+  def run(_args) do
+    File.write!("priv/uxid_manifest.json", MyApp.IDs.manifest_json())
+  end
+end
+```
+
+The manifest carries `prefix`, `size` (which fixes the random length), `category`,
+and `key`; combine each `prefix` with the registry's delimiter and a Base32 body
+to assemble an ID anywhere.
+
 ## Installation
 
 The package can be installed by adding `uxid` to your list of dependencies in `mix.exs`:
@@ -259,6 +359,7 @@ Online documenttion can be found at [https://hexdocs.pm/uxid][hexdocs_project_ur
 [hex_project_url]: https://hex.pm/packages/uxid
 [hexdocs_project_url]: https://hexdocs.pm/uxid
 [mit_license_url]: http://opensource.org/licenses/MIT
+[uxid_talk_url]: https://www.youtube.com/watch?v=YIIJClhjxOA
 
 <!-- BADGES -->
 [badge_license_url]: https://img.shields.io/badge/license-MIT-brightgreen.svg?cacheSeconds=3600?style=flat-square

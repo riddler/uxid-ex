@@ -1,5 +1,11 @@
 ### Upcoming
 
+* Adds `UXID.Registry`, an opt-in compile-time DSL for an app's prefixes via `use UXID.Registry` with `defid`/`retired`:
+  - Compile-time uniqueness (active and `retired` prefixes) and prefix-format checks, replacing per-app CI tests
+  - By-key API: `generate!/1`, `generate/1`, `prefix/1`, `size/1`, `schema/1`, `category/1`, `field_opts/1`, `all/0`, `keys/0`, `reserved/0`
+  - By-ID-string routing (prefix → schema): `known?/1`, `key_for/1`, `schema_for/1`, `resolve/1`; parsing splits on the last delimiter (unambiguous because a Base32 body never contains it), and the configurable delimiter is validated as Base32-disjoint (defaults to `_`)
+  - JSON manifest export (`manifest/0`, `manifest_json/0`) so database functions and mobile/JS clients mint prefixes from the same source of truth, with no added dependency
+  - Registers `defid`/`retired` as paren-free locals and exports the rule for consuming apps
 * Adds opt-in monotonic generation via the `monotonic` option (per-call/per-field) or `config :uxid, :monotonic` global policy:
   - Accepts `true`/`false`, or a list of sizes (alias-aware, e.g. `[:small]` matches both `:small` and `:s`)
   - Within a millisecond the random field is seeded once then advanced by a random positive step (uniform over `[1, 2^(bits/2)]`, drawn from the CSPRNG), guaranteeing uniqueness and K-sortability for a burst — process-local, `async: true` safe, no GenServer/ETS

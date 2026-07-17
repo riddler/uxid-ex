@@ -74,6 +74,45 @@ defmodule UXID.Registry do
   Base32 body (`"_"` or `"-"`); a letter or digit is rejected at compile time.
   An underscore is preferred for compound prefixes since it does not break
   double-click-to-select-the-whole-id.
+
+  ## Routing in a layered app (self-registration)
+
+  A `schema:` literal points the registry *up* at a schema module. In a flat app
+  that is fine, and `schema_for/1` resolves it with no further setup. In a
+  **layered** app the registry usually lives at the base layer (so every layer
+  can depend down on it to mint IDs and read `field_opts/1`), while the schemas
+  it routes to live above it — so naming them inverts the dependency direction.
+
+  To keep the direction correct, omit `schema:` and let each schema register
+  itself under its key with `UXID.Registered`. The reference then points *down*
+  (schema → registry key):
+
+      defmodule MyApp.CRM.Contact do
+        use Ecto.Schema
+        use UXID.Registered, key: :contact
+        @primary_key {:id, UXID, [autogenerate: true] ++ MyApp.IDs.field_opts(:contact)}
+      end
+
+      defmodule MyApp.IDs do
+        use UXID.Registry
+        defid :contact, prefix: "contact", route: true  # filled at boot, no schema literal
+      end
+
+  At boot, `verify!/1` scans the given OTP apps for the marker, assembles the
+  prefix → schema routing table into `:persistent_term`, and validates it —
+  raising if a marker names an unregistered key, two modules claim one key, or a
+  `route: true` key resolves to no schema. Wire it into your top app's `start/2`
+  so every boot (prod, dev, and CI's `mix test`) re-verifies:
+
+      def start(_type, _args) do
+        MyApp.IDs.verify!(otp_apps: [:my_app])
+        # ...
+      end
+
+  Because the registry discovers schemas by runtime reflection rather than a
+  compile-visible module reference, no base-layer code ever names an upper-layer
+  module, so `Boundary`/`xref` see nothing pointing the wrong way. `known?/1` and
+  `key_for/1` need no schema at all and work regardless.
   """
 
   @default_prefix_format ~r/^[a-z][a-z0-9_]{1,7}$/
@@ -256,8 +295,57 @@ defmodule UXID.Registry do
       @doc "The registered key for an ID string (or `nil`)."
       def key_for(id), do: UXID.Registry.field_of(resolve(id), :key)
 
-      @doc "The schema module for an ID string (or `nil`) — the prefix→schema map."
-      def schema_for(id), do: UXID.Registry.field_of(resolve(id), :schema)
+      @doc """
+      The schema module for an ID string (or `nil`) — the prefix→schema map.
+      Resolves a compile-time `schema:` literal first, then the runtime routing
+      table built from schema self-registration (see `verify!/1`).
+      """
+      def schema_for(id),
+        do:
+          UXID.Registry.schema_for_id(
+            @uxid_index,
+            UXID.Registry.get_routes(__MODULE__),
+            id,
+            @uxid_delimiter_str
+          )
+
+      @doc "The registered prefixes, in declaration order."
+      def prefixes(), do: unquote(Enum.map(entries, & &1.prefix))
+
+      @doc """
+      The current `%{key => schema_module}` routing table assembled from schema
+      self-registration (see `UXID.Registered`). Empty until `build_routes!/1`
+      or `verify!/1` runs.
+      """
+      def routes(), do: UXID.Registry.get_routes(__MODULE__)
+
+      @doc """
+      Builds the runtime routing table by scanning the modules of `:otp_apps`
+      for the `UXID.Registered` marker and storing the prefix → schema map in
+      `:persistent_term`. Idempotent. Pass the app names at the call site:
+
+          #{inspect(__MODULE__)}.build_routes!(otp_apps: [:my_app])
+      """
+      def build_routes!(opts),
+        do: UXID.Registry.build_routes(__MODULE__, @uxid_by_key, opts)
+
+      @doc """
+      Builds the routing table (`build_routes!/1`) and validates the registry:
+      every marker key is registered, no key is claimed by two modules, and
+      every `route: true` key resolves to a schema (compile-time literal or
+      self-registration). Raises `ArgumentError` listing every problem, returns
+      `:ok` otherwise.
+
+      Call from your top app's `start/2` so every boot — prod, dev, and CI's
+      `mix test` — verifies:
+
+          def start(_type, _args) do
+            MyApp.IDs.verify!(otp_apps: [:my_app])
+            # ...
+          end
+      """
+      def verify!(opts \\ []),
+        do: UXID.Registry.verify(__MODULE__, @uxid_by_key, opts)
     end
   end
 
@@ -310,6 +398,114 @@ defmodule UXID.Registry do
   @doc false
   def field_of(nil, _field), do: nil
   def field_of(entry, field), do: Map.get(entry, field)
+
+  # === Runtime routing helpers (self-registration; called at boot) ===
+
+  @doc false
+  def get_routes(module), do: :persistent_term.get({__MODULE__, module}, %{})
+
+  @doc false
+  def schema_for_id(index, routes, id, delimiter) do
+    case resolve_id(index, id, delimiter) do
+      nil -> nil
+      entry -> entry.schema || Map.get(routes, entry.key)
+    end
+  end
+
+  @doc false
+  def build_routes(module, by_key, opts) do
+    markers = collect_markers(fetch_apps!(opts))
+    routes = validate_markers!(module, by_key, markers)
+    :persistent_term.put({__MODULE__, module}, routes)
+    routes
+  end
+
+  @doc false
+  def verify(module, by_key, opts) do
+    build_routes(module, by_key, opts)
+    :ok
+  end
+
+  # Scans the given OTP apps for modules carrying the `UXID.Registered` marker,
+  # force-loading each so `function_exported?/3` sees it — that force-load is
+  # what makes the table complete at boot even for otherwise-lazy modules.
+  @doc false
+  def collect_markers(apps) do
+    for app <- apps, mod <- app_modules(app), marked?(mod), do: {mod.__uxid_key__(), mod}
+  end
+
+  # Validates a collected marker list against the registry and returns the
+  # `%{key => module}` routing map. Split out from the app scan so the
+  # validation rules can be tested with crafted marker lists.
+  @doc false
+  def validate_markers!(module, by_key, markers) do
+    validate_marker_keys!(module, by_key, markers)
+    validate_marker_dups!(module, markers)
+    routes = Map.new(markers)
+    validate_route_completeness!(module, by_key, routes)
+    routes
+  end
+
+  defp app_modules(app) do
+    _ = Application.load(app)
+    Application.spec(app, :modules) || []
+  end
+
+  defp marked?(mod), do: Code.ensure_loaded?(mod) and function_exported?(mod, :__uxid_key__, 0)
+
+  defp fetch_apps!(opts) do
+    case Keyword.get(opts, :otp_apps) do
+      apps when is_list(apps) and apps != [] ->
+        apps
+
+      other ->
+        raise ArgumentError,
+              ":otp_apps must be a non-empty list of OTP application names, got: #{inspect(other)}"
+    end
+  end
+
+  defp validate_marker_keys!(module, by_key, markers) do
+    unknown = for {key, mod} <- markers, not Map.has_key?(by_key, key), do: {key, mod}
+
+    unless unknown == [] do
+      detail = Enum.map_join(unknown, ", ", fn {key, mod} -> "#{inspect(key)} (#{inspect(mod)})" end)
+
+      raise ArgumentError,
+            "UXID markers reference keys not registered in #{inspect(module)}: " <> detail
+    end
+  end
+
+  defp validate_marker_dups!(module, markers) do
+    dups =
+      markers
+      |> Enum.group_by(fn {key, _mod} -> key end, fn {_key, mod} -> mod end)
+      |> Enum.filter(fn {_key, mods} -> length(Enum.uniq(mods)) > 1 end)
+
+    unless dups == [] do
+      detail =
+        Enum.map_join(dups, "; ", fn {key, mods} ->
+          "#{inspect(key)} claimed by #{inspect(Enum.uniq(mods))}"
+        end)
+
+      raise ArgumentError,
+            "UXID keys claimed by multiple modules in #{inspect(module)}: " <> detail
+    end
+  end
+
+  defp validate_route_completeness!(module, by_key, routes) do
+    missing =
+      for {key, entry} <- by_key,
+          entry.route,
+          is_nil(entry.schema),
+          not Map.has_key?(routes, key),
+          do: key
+
+    unless missing == [] do
+      raise ArgumentError,
+            "UXID keys marked route: true but not mapped to a schema in #{inspect(module)}: " <>
+              inspect(missing)
+    end
+  end
 
   @manifest_fields [:key, :prefix, :size, :category]
 
@@ -375,14 +571,20 @@ defmodule UXID.Registry do
               "got: #{inspect(prefix)}"
     end
 
+    schema = Keyword.get(opts, :schema)
+
     %{
       key: key,
       prefix: prefix,
       size: Keyword.get(opts, :size, default_size),
-      schema: Keyword.get(opts, :schema),
+      schema: schema,
       category: Keyword.get(opts, :category),
       validate: Keyword.get(opts, :validate, default_validate),
-      allow_uuid: Keyword.get(opts, :allow_uuid, true)
+      allow_uuid: Keyword.get(opts, :allow_uuid, true),
+      # A key "must route" (verify!/1 fails if it resolves to no schema) when it
+      # carries a compile-time `schema:` literal, or is explicitly opted in with
+      # `route: true` so a self-registered schema is required to fill it.
+      route: Keyword.get(opts, :route, not is_nil(schema))
     }
   end
 

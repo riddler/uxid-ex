@@ -18,7 +18,7 @@ defmodule UXID.MixProject do
     {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
     {:excoveralls, "~> 0.18.5", only: :test},
     {:ex_quality, "~> 0.6", only: :dev, runtime: false},
-    {:ex_doc, "~> 0.23", only: :dev},
+    {:ex_doc, "~> 0.34", only: :dev},
     {:benchee, "~> 1.0", only: :dev},
     {:benchee_html, "~> 1.0", only: :dev},
     {:ecto_ulid, "~> 0.2", only: :dev, optional: true}
@@ -78,14 +78,29 @@ defmodule UXID.MixProject do
       canonical: "https://hexdocs.pm/uxid",
       main: "readme",
       source_url: @source_url,
-      extras: ["README.md", "CHANGELOG.md", "LICENSE"]
+      extras: [
+        "README.md",
+        "guides/sizes.md",
+        "guides/ecto.md",
+        "guides/monotonic.md",
+        "guides/registry.md",
+        "guides/configuration.md",
+        "CHANGELOG.md",
+        "LICENSE"
+      ],
+      groups_for_extras: [
+        Guides: ~r/guides\//
+      ],
+      groups_for_modules: [
+        Registry: [UXID.Registry, UXID.Registered]
+      ]
     ]
   end
 
   defp package() do
     [
       name: @app,
-      files: ~w(lib/uxid* mix.exs README.md LICENSE CHANGELOG.md),
+      files: ~w(lib/uxid* mix.exs README.md LICENSE CHANGELOG.md guides),
       licenses: ["MIT"],
       links: %{"GitHub" => @source_url},
       maintainers: ["UXID Team"]

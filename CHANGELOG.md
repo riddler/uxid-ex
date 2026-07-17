@@ -2,6 +2,8 @@
 
 ## Upcoming
 
+## 2.6.0 / 2026-07-17
+
 * Adds runtime prefix → schema routing for **layered apps**, so a `UXID.Registry` can live at an app's base layer without a `schema:` literal inverting the dependency direction:
   - New `UXID.Registered` mixin (`use UXID.Registered, key: :contact`) marks a schema under a registry key; the reference points *down* (schema names a key), so the base-layer registry never references an upper-layer module — `Boundary`/`xref` stay clean
   - `MyApp.IDs.verify!(otp_apps: [...])` / `build_routes!/1` assemble the routing table at boot by scanning the given apps for the marker (via reflection, no compile-visible module reference) and store it in `:persistent_term`; `verify!/1` also validates it — raising on a marker that names an unregistered key, two modules claiming one key, or a `route: true` key left unmapped

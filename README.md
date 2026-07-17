@@ -28,7 +28,7 @@ Add `uxid` to your dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:uxid, "~> 2.5"}
+    {:uxid, "~> 2.6"}
   ]
 end
 ```

@@ -1,5 +1,7 @@
 ### Upcoming
 
+### 2.5.0 / 2026-07-16
+
 * Adds `UXID.Registry`, an opt-in compile-time DSL for an app's prefixes via `use UXID.Registry` with `defid`/`retired`:
   - Compile-time uniqueness (active and `retired` prefixes) and prefix-format checks, replacing per-app CI tests
   - By-key API: `generate!/1`, `generate/1`, `prefix/1`, `size/1`, `schema/1`, `category/1`, `field_opts/1`, `all/0`, `keys/0`, `reserved/0`

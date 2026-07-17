@@ -347,7 +347,7 @@ The package can be installed by adding `uxid` to your list of dependencies in `m
 ```elixir
 def deps do
   [
-    {:uxid, "~> 2.4"}
+    {:uxid, "~> 2.5"}
   ]
 end
 ```

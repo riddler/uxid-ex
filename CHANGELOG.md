@@ -2,6 +2,8 @@
 
 ## Upcoming
 
+## 2.7.0 / 2026-07-23
+
 * Adds opt-in **deterministic (name-based) IDs** via the `from:` option on `generate/1`, `generate!/1`, and `new/1` — the same input string always maps to the same ID (UUIDv5-style), across processes and machines:
   - Body is a truncated **SHA-256** of the input (SHA-256, not the deprecated SHA-1 of real UUIDv5, since no wire interop is needed)
   - The **prefix is the namespace** (folded into the hash), so the same string under two prefixes yields two unrelated bodies; no separate `namespace:` option

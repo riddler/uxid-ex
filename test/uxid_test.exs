@@ -32,7 +32,9 @@ defmodule UXIDTest do
       {:ok, decoded_uxid} = UXID.decode("01G2B5M42HWY45WE5YQE3P2CJ2")
 
       assert %UXID.Codec{
+               deterministic: false,
                encoded: "01G2B5M42HWY45WE5YQE3P2CJ2",
+               from: nil,
                prefix: nil,
                rand: :decode_not_supported,
                rand_encoded: "WY45WE5YQE3P2CJ2",

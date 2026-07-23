@@ -2,6 +2,16 @@
 
 ## Upcoming
 
+* Adds opt-in **deterministic (name-based) IDs** via the `from:` option on `generate/1`, `generate!/1`, and `new/1` — the same input string always maps to the same ID (UUIDv5-style), across processes and machines:
+  - Body is a truncated **SHA-256** of the input (SHA-256, not the deprecated SHA-1 of real UUIDv5, since no wire interop is needed)
+  - The **prefix is the namespace** (folded into the hash), so the same string under two prefixes yields two unrelated bodies; no separate `namespace:` option
+  - Marked with a leading `z`/`Z` (Crockford value 31): self-identifying and sorts *after* every time-based ID; not K-sortable among themselves
+  - Reserves value 31 in compact-time encoding so `z`/`Z` is an unambiguous scheme marker — compact timestamps now raise past ~mid-2038 (standard 48-bit timestamps unaffected)
+  - Deterministic bodies reuse the standard (non-compact) lengths per `:size`, spending the whole body (minus the marker) on hash bits (45–125 bits)
+  - `decode/1` reports `deterministic: true` with `time: nil`; adds `UXID.deterministic?/1`
+  - `from:` requires a string (raises otherwise); `from:` with an explicit `monotonic: true` raises (deterministic vs. burst-random); Ecto `autogenerate` is intentionally not wired for `from:` (mint explicitly in a changeset)
+  - Not a secret: a hash of a *known* input is exactly as guessable as the input — do not derive an ID from a low-entropy secret and treat it as unguessable
+
 ## 2.6.0 / 2026-07-17
 
 * Adds runtime prefix → schema routing for **layered apps**, so a `UXID.Registry` can live at an app's base layer without a `schema:` literal inverting the dependency direction:

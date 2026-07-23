@@ -7,7 +7,15 @@ defmodule UXID.Codec do
     :case,
     :compact_time,
     :delimiter,
+    # `deterministic` records the scheme: set true on the name-based (hash) path,
+    # false/nil on the time-based path. It is stamped during encode (from a `from`
+    # input) and during decode (from the leading `z`/`Z` marker).
+    :deterministic,
     :encoded,
+    # `from` holds the input string for a deterministic (name-based) UXID. When it
+    # is a binary the encoder routes to the deterministic scheme instead of the
+    # time/random one.
+    :from,
     :monotonic,
     :prefix,
     :rand_size,
@@ -23,7 +31,9 @@ defmodule UXID.Codec do
   @type t() :: %__MODULE__{
           case: atom() | nil,
           compact_time: boolean() | nil,
+          deterministic: boolean() | nil,
           encoded: String.t() | nil,
+          from: String.t() | nil,
           monotonic: boolean() | [atom()] | nil,
           prefix: String.t() | nil,
           delimiter: String.t() | nil,

@@ -83,6 +83,7 @@ defmodule UXID.MixProject do
         "guides/sizes.md",
         "guides/ecto.md",
         "guides/monotonic.md",
+        "guides/deterministic.md",
         "guides/registry.md",
         "guides/configuration.md",
         "CHANGELOG.md",

@@ -21,6 +21,23 @@ defmodule UXID.Encoder do
     if size_to_index(size1) >= size_to_index(size2), do: size1, else: size2
   end
 
+  # Deterministic (name-based) scheme: a `from` binary short-circuits the
+  # time/random machinery. The prefix is folded into the hash as the namespace, so
+  # the same string under two prefixes yields two different bodies. See
+  # encode_deterministic/1 for the body layout.
+  def process(%Codec{from: from} = struct) when is_binary(from) do
+    uxid =
+      struct
+      |> reject_monotonic_conflict()
+      |> ensure_min_size()
+      |> ensure_case()
+      |> ensure_delimiter()
+      |> encode_deterministic()
+      |> prefix()
+
+    {:ok, uxid}
+  end
+
   def process(%Codec{} = struct) do
     uxid =
       struct
@@ -211,6 +228,69 @@ defmodule UXID.Encoder do
 
   defp ensure_delimiter(uxid), do: uxid
 
+  # from: (deterministic) and an explicit monotonic: true are a contradiction —
+  # one asks for a stable hash, the other for burst-unique randomness. The global
+  # monotonic policy is not consulted on this path; only an explicit true conflicts.
+  defp reject_monotonic_conflict(%Codec{monotonic: true}),
+    do:
+      raise(
+        ArgumentError,
+        "from: (deterministic mode) and monotonic: true are mutually exclusive — " <>
+          "a deterministic ID is a stable hash, not burst-random"
+      )
+
+  defp reject_monotonic_conflict(uxid), do: uxid
+
+  # Encode the body of a deterministic (name-based) UXID.
+  #
+  # Layout: a leading marker char (`z` lower / `Z` upper, Crockford value 31)
+  # followed by Base32 of the top bits of a SHA-256 digest. The marker is
+  # self-identifying (a human/decoder sees it is hash-derived, not time-derived)
+  # and sorts every deterministic ID after every time-based ID (value 31 is the
+  # max symbol).
+  #
+  # The prefix is folded into the hash input as the namespace, so the same string
+  # under two prefixes yields two unrelated bodies. The hash-char count is folded
+  # in too, so the same string at two sizes yields unrelated bodies rather than one
+  # being a truncated prefix of the other. Zero (`0`) bytes separate the fields so
+  # distinct field splits can't alias. Case is a display concern only and is not
+  # part of the hash input.
+  defp encode_deterministic(%Codec{case: case, from: from, prefix: prefix, size: size} = uxid) do
+    nchars = deterministic_hash_chars(size)
+    nbits = nchars * 5
+    digest = :crypto.hash(:sha256, [prefix || "", 0, from, 0, <<nchars>>])
+    <<bits::bitstring-size(nbits), _::bitstring>> = digest
+    marker = if case == :lower, do: <<?z>>, else: <<?Z>>
+    body = marker <> encode_hash_bits(bits, case)
+    %{uxid | encoded: body, deterministic: true}
+  end
+
+  # Recursively consume 5 bits at a time off the digest, reusing the same Crockford
+  # lookup tables as encode_rand.
+  defp encode_hash_bits(<<>>, _case), do: ""
+
+  defp encode_hash_bits(<<v::5, rest::bitstring>>, :lower),
+    do: <<el(v)>> <> encode_hash_bits(rest, :lower)
+
+  defp encode_hash_bits(<<v::5, rest::bitstring>>, case),
+    do: <<e(v)>> <> encode_hash_bits(rest, case)
+
+  # Hash chars per size (body = 1 marker char + this many hash chars). Mirrors the
+  # canonical table in design/deterministic-uxid.md; reuses the standard
+  # (non-compact) lengths so the decoder's @size_by_length inference is unchanged.
+  # nil/unknown sizes default to the xlarge width (25).
+  defp deterministic_hash_chars(:xs), do: 9
+  defp deterministic_hash_chars(:xsmall), do: 9
+  defp deterministic_hash_chars(:s), do: 13
+  defp deterministic_hash_chars(:small), do: 13
+  defp deterministic_hash_chars(:m), do: 17
+  defp deterministic_hash_chars(:medium), do: 17
+  defp deterministic_hash_chars(:l), do: 21
+  defp deterministic_hash_chars(:large), do: 21
+  defp deterministic_hash_chars(:xl), do: 25
+  defp deterministic_hash_chars(:xlarge), do: 25
+  defp deterministic_hash_chars(_), do: 25
+
   defp encode(%Codec{} = input) do
     uxid =
       input
@@ -222,9 +302,20 @@ defmodule UXID.Encoder do
 
   defp encode_time(%Codec{compact_time: true, case: case, time: time, time_encoded: nil} = uxid) do
     # Use only 40 bits of timestamp (remove 8 MSB)
-    # This gives us timestamps valid until ~Sep 2039
+    # This gives compact timestamps valid until ~mid-2038 (value 31 reserved)
     # Perfect 5-bit alignment: 8 characters × 5 bits = 40 bits
     truncated_time = time &&& 0xFFFFFFFFFF
+
+    # The first compact char encodes the top 5 bits (t1). Value 31 (`z`/`Z`) is
+    # reserved as the deterministic-ID scheme marker, so no compact time body may
+    # emit it. t1 only reaches 31 in the final band of the 40-bit epoch (roughly
+    # mid-2038 -> Sep 2039), so this guard bites only for far-future timestamps.
+    if truncated_time >>> 35 == 31 do
+      raise ArgumentError,
+            "compact_time cannot encode timestamps at/after ~mid-2038: value 31 is " <>
+              "reserved as the deterministic-ID scheme marker — use a standard size"
+    end
+
     string = encode_time_compact(<<truncated_time::unsigned-size(40)>>, case)
     %{uxid | time_encoded: string}
   end

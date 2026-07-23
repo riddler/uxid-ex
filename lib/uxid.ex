@@ -13,8 +13,19 @@ defmodule UXID do
   * Do not require any coordination (human or automated) at startup, or generation
   * Are very unlikely to collide (more likely with less randomness)
   * Are easily and accurately transmitted to another human using a telephone
+  * Can optionally be deterministic (name-based) — the same input always maps to
+    the same ID
 
   Many of the concepts of Stripe IDs have been used in this library.
+
+  ## Deterministic IDs
+
+  Passing `from:` to `generate/1`, `generate!/1`, or `new/1` produces a
+  deterministic (name-based) ID: the same input string always maps to the same
+  ID (UUIDv5-style), with the prefix acting as the namespace. Deterministic IDs
+  carry a leading `z`/`Z` marker and sort after time-based IDs. They are a hash
+  of a *known* input, so they are not unguessable — see `generate/1` and the
+  Deterministic IDs guide for the full picture.
   """
 
   @typedoc "Options for generating a UXID"
@@ -27,6 +38,7 @@ defmodule UXID do
           | {:delimiter, String.t() | nil}
           | {:compact_time, boolean() | nil}
           | {:monotonic, boolean() | [atom()] | nil}
+          | {:from, String.t() | nil}
 
   @type options :: [option()]
 
@@ -51,6 +63,22 @@ defmodule UXID do
   @spec generate(opts :: options()) :: {:ok, __MODULE__.t()}
   @doc """
   Returns an encoded UXID string along with response status.
+
+  ## Deterministic (name-based) IDs
+
+  Passing `from:` switches to deterministic mode: the same input string always
+  maps to the same ID (UUIDv5-style), across processes and machines, forever. The
+  prefix is folded in as the namespace, so the same string under two prefixes
+  yields two different bodies. `from:` must be a string (raises otherwise).
+
+  Deterministic IDs are marked with a leading `z`/`Z` and sort *after* every
+  time-based ID; they are not K-sortable among themselves. They are a hash of a
+  *known* input, so they are exactly as guessable as that input — do not derive
+  an ID from a low-entropy secret and treat the ID as unguessable.
+
+      {:ok, id} = UXID.generate(prefix: "usr", from: "alice@example.com")
+      # {:ok, "usr_z…"} — identical for this input on every call
+
   """
   def generate(opts \\ []) do
     {:ok, %Codec{string: string}} = new(opts)
@@ -61,6 +89,14 @@ defmodule UXID do
   @spec generate!(opts :: options()) :: __MODULE__.t()
   @doc """
   Returns an unwrapped encoded UXID string.
+
+  Passing `from:` returns a deterministic (name-based) ID: the same input always
+  maps to the same ID, with the prefix acting as the namespace. See `generate/1`
+  for the full deterministic-mode notes.
+
+      UXID.generate!(prefix: "usr", from: "alice@example.com")
+      # => "usr_z…" (stable for this input, forever)
+
   """
   def generate!(opts \\ []) do
     {:ok, uxid} = generate(opts)
@@ -80,10 +116,12 @@ defmodule UXID do
     compact_time = Keyword.get(opts, :compact_time)
     monotonic = Keyword.get(opts, :monotonic)
     timestamp = Keyword.get(opts, :time, System.system_time(:millisecond))
+    from = validate_from(Keyword.get(opts, :from))
 
     %Codec{
       case: case,
       compact_time: compact_time,
+      from: from,
       monotonic: monotonic,
       prefix: prefix,
       rand_size: rand_size,
@@ -93,6 +131,19 @@ defmodule UXID do
     }
     |> Encoder.process()
   end
+
+  # from: switches on deterministic mode and must be a binary. Stringify your own
+  # composite keys before passing them; a non-binary is a caller error, so raise a
+  # crisp message rather than hashing an inspect/1 rendering.
+  defp validate_from(nil), do: nil
+  defp validate_from(from) when is_binary(from), do: from
+
+  defp validate_from(other),
+    do:
+      raise(
+        ArgumentError,
+        "from: must be a string, got: #{inspect(other)} — stringify your key before passing it"
+      )
 
   def encode_case(), do: Application.get_env(:uxid, :case, :lower)
 
@@ -115,7 +166,10 @@ defmodule UXID do
   adding 8 bits to randomness. This is a global policy that can be overridden
   per-call with the `compact_time` option.
   This provides perfect 5-bit Crockford Base32 alignment (8 chars vs 10 chars).
-  K-sortability is maintained until ~September 2039.
+  K-sortability is maintained until ~mid-2038 for compact mode: value 31 (the
+  first char `z`/`Z`) is reserved as the deterministic-ID scheme marker, so
+  compact encoding raises for timestamps at/after that band. Standard 48-bit
+  timestamps are unaffected.
   """
   def compact_small_times(), do: Application.get_env(:uxid, :compact_small_times, false)
 
@@ -188,6 +242,44 @@ defmodule UXID do
 
   def valid?(_term, _opts), do: false
 
+  @spec deterministic?(term(), keyword()) :: boolean()
+  @doc """
+  Returns `true` if the given value is a deterministic (name-based) UXID.
+
+  Deterministic IDs carry a leading `z`/`Z` scheme marker (Crockford value 31)
+  instead of an encoded timestamp, so this only inspects the first body
+  character — it does not otherwise validate structure (pair it with `valid?/2`
+  if you need both). Time-based IDs start with a lower value and return `false`.
+
+  ## Options
+
+    * `:delimiter` - the prefix delimiter (defaults to the configured
+      delimiter, see `default_delimiter/0`).
+
+  ## Examples
+
+      iex> UXID.deterministic?("usr_z9m4k7p2q3r8t5v6w0abcde")
+      true
+
+      iex> UXID.deterministic?("cus_01emdgjf0dqxqj8fm78xe97y3h")
+      false
+
+      iex> UXID.deterministic?("nope!")
+      false
+  """
+  def deterministic?(term, opts \\ [])
+
+  def deterministic?(term, opts) when is_binary(term) do
+    delimiter = Keyword.get(opts, :delimiter, default_delimiter())
+
+    case split_prefix(term, delimiter) do
+      {_prefix, <<first, _::binary>>} when first in [?z, ?Z] -> true
+      _ -> false
+    end
+  end
+
+  def deterministic?(_term, _opts), do: false
+
   defp body_valid?(body) do
     String.length(body) >= @min_body_length and Regex.match?(@crockford_body, body)
   end
@@ -221,6 +313,11 @@ defmodule UXID do
     for opt-in monotonic generation:
 
         field :id, UXID, autogenerate: true, prefix: "evt", size: :small, monotonic: true
+
+    Deterministic (`from:`) IDs are intentionally **not** wired here — there is no
+    per-row input available at autogenerate time. Mint them explicitly in
+    application code (e.g. in a changeset via `generate!/1`) and store/cast the
+    result as an ordinary string.
     """
     def autogenerate(opts) do
       case = Map.get(opts, :case, encode_case())

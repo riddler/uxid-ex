@@ -24,6 +24,7 @@ defmodule UXID.Decoder do
     decoded =
       struct
       |> separate_prefix()
+      |> detect_scheme()
       |> decode_size()
       |> ensure_compact_time()
       |> separate_encoded()
@@ -33,6 +34,15 @@ defmodule UXID.Decoder do
 
     {:ok, decoded}
   end
+
+  # A leading `z`/`Z` marker (Crockford value 31) identifies a deterministic
+  # (name-based) ID. Deterministic bodies reuse the standard (non-compact)
+  # lengths, so decode_size still infers the right size; only the time field is
+  # meaningless (the body is a hash, not a timestamp).
+  defp detect_scheme(%Codec{encoded: <<first, _::binary>>} = struct) when first in [?z, ?Z],
+    do: %{struct | deterministic: true}
+
+  defp detect_scheme(%Codec{} = struct), do: %{struct | deterministic: false}
 
   @spec separate_prefix(Codec.t()) :: Codec.t()
   def separate_prefix(%Codec{prefix: nil, string: uxid_string} = struct) do
@@ -100,6 +110,10 @@ defmodule UXID.Decoder do
 
   # Decode UXID and extract timestamp
   @spec decode_time(Codec.t()) :: Codec.t()
+  # Deterministic (name-based) IDs carry a hash, not a timestamp — do not decode
+  # the body as time.
+  def decode_time(%Codec{deterministic: true} = struct), do: %{struct | time: nil}
+
   # Compact 40-bit timestamp (8 characters, perfect 5-bit alignment)
   # Requires epoch reconstruction to restore full 48-bit timestamp
   def decode_time(

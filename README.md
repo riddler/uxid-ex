@@ -17,6 +17,7 @@ Stripe-style identifiers like `usr_01epey2p06tr1rtv07xa82zgjj`. They are:
 * Unlikely to collide — more randomness, lower odds
 * Human-transmissible — easy to read out accurately over the phone
 * Optionally **monotonic** — a burst within one millisecond stays unique and strictly ordered
+* Optionally **deterministic** — the same input string always maps to the same ID (UUIDv5-style), marked with a leading `z` and sorted after time-based IDs
 * Optionally **governed by a registry** — one module keeps every prefix unique and maps an ID back to its resource
 
 Many of the concepts of [Stripe IDs][stripe_ids_url] have been used in this library.
@@ -50,6 +51,10 @@ UXID.generate!(prefix: "cus", size: :small)   # "cus_01eqrh884aqyy1"
 
 # Uppercase to match earlier UXID versions
 UXID.generate!(case: :upper)                  # "01EMDGJF0DQXQJ8FM78XE97Y3H"
+
+# Deterministic: same input -> same id, forever (prefix is the namespace)
+UXID.generate!(prefix: "usr", from: "alice@example.com")
+# => "usr_zcvt7epac0t1ebcsjfyf7cwz25"
 ```
 
 ## Ecto in 30 seconds
@@ -78,6 +83,7 @@ The five-minute path is above; each area has a dedicated guide:
 * **[Sizes & Encoding](guides/sizes.md)** — the t-shirt sizes, how much randomness each carries, and compact-time mode for extra collision resistance.
 * **[Ecto Integration](guides/ecto.md)** — primary/foreign keys, strict `validate:` casting, `allow_uuid` coexistence, and `UXID.valid?/2`.
 * **[Monotonic IDs](guides/monotonic.md)** — guaranteed same-millisecond uniqueness and ordering, the security tradeoff, and when to use it.
+* **[Deterministic IDs](guides/deterministic.md)** — name-based (UUIDv5-style) IDs where the same input always maps to the same ID, with the prefix as the namespace.
 * **[Prefix Registry](guides/registry.md)** — a compile-time DSL that keeps every prefix unique, routes an ID back to its schema, works in layered/umbrella apps, and exports a cross-source JSON manifest.
 * **[Configuration](guides/configuration.md)** — every `config :uxid` key in one place, with per-call vs. global precedence.
 

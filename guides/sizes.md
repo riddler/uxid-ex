@@ -26,6 +26,10 @@ UXID.generate!(prefix: "cus", size: :small)   # "cus_01eqrh884aqyy1"  (14-char b
 UXID.generate!(prefix: "cus", size: :xl)      # "cus_01kxr2jnqndq7qx9wrvhmrzrhw"
 ```
 
+[Deterministic IDs](deterministic.md) reuse these same body lengths, but spend
+the whole body (minus the one-character `z`/`Z` marker) on hash bits instead of a
+timestamp plus randomness — so a deterministic `:m` body is 85 hash bits, not 40.
+
 ## Collision resistance
 
 Two UXIDs can only collide if they share the **same millisecond timestamp** *and*
@@ -85,7 +89,7 @@ UXID.generate!(size: :small, compact_time: true) # 13-char body, 24 random bits
 - Reduces the timestamp from 48 bits (10 chars) to 40 bits (8 chars).
 - Frees 8 bits for randomness — e.g. `:small` gains 50% more (24 vs 16 bits).
 - Keeps perfect 5-bit Crockford Base32 alignment.
-- Stays K-sortable until ~September 2039, after which the compact timestamp wraps.
+- Stays K-sortable until ~mid-2038, after which the compact encoder raises: value 31 (the first char `z`/`Z`) is reserved as the [deterministic-ID](deterministic.md) scheme marker, so no compact timestamp may emit it. Standard 48-bit timestamps are unaffected.
 - The decoder auto-detects the compact format from the length and reconstructs the full timestamp.
 
 Compact time is useful for test suites that mint IDs rapidly and for small

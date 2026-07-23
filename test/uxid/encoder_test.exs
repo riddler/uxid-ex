@@ -1,5 +1,9 @@
 defmodule UXID.EncoderTest do
-  use ExUnit.Case, async: true
+  # async: false — several tests here mutate global config (Application.put_env
+  # for :case, :min_size, :compact_small_times). ExUnit never runs a sync module
+  # concurrently with async ones, so this keeps those globals from bleeding into
+  # other tests mid-run.
+  use ExUnit.Case, async: false
 
   alias UXID.{Codec, Encoder}
 

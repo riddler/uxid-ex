@@ -1,5 +1,8 @@
 defmodule UXID.MonotonicTest do
-  use ExUnit.Case, async: true
+  # async: false — the precedence tests mutate global config (Application.put_env
+  # for :monotonic). ExUnit never runs a sync module concurrently with async ones,
+  # so this keeps that global from bleeding into other tests mid-run.
+  use ExUnit.Case, async: false
 
   import Bitwise
 
@@ -13,8 +16,7 @@ defmodule UXID.MonotonicTest do
     end
 
     test "advances by a positive step within the same millisecond" do
-      {_t, r1} = Monotonic.next("evt", 3, 5000)
-      {_t, r2} = Monotonic.next("evt", 3, 5000)
+      {_kept, r1, r2} = stepped_pair("evt", 3, 5000, 5000)
 
       # Random step is in [1, 2^12] for a 3-byte field: strictly greater, and
       # within the forward step window (never a full reseed within the ms).
@@ -26,27 +28,44 @@ defmodule UXID.MonotonicTest do
     end
 
     test "a same-ms burst is strictly increasing and unique" do
-      rands =
+      # A high random seed can overflow the field within the burst, which spins
+      # the time forward 1ms and reseeds — those draws are a new run, not the same
+      # ms. Group by emitted time and assert the per-ms guarantee on each run.
+      draws =
         for _ <- 1..100 do
-          {_t, r} = Monotonic.next("burst", 4, 9000)
-          r
+          Monotonic.next("burst", 4, 9000)
         end
 
-      assert length(Enum.uniq(rands)) == 100
-      assert rands == Enum.sort(rands)
+      runs =
+        draws
+        |> Enum.chunk_by(fn {t, _r} -> t end)
+        |> Enum.map(fn run -> Enum.map(run, fn {_t, r} -> r end) end)
+
+      assert Enum.all?(runs, fn rands ->
+               rands == Enum.sort(rands) and length(Enum.uniq(rands)) == length(rands)
+             end)
     end
 
     test "steps vary and stay within [1, 2^(bits/2)] (not a constant +1)" do
-      # 2-byte field: step_bits = 8, so gaps lie in [1, 256]. A constant +1 would
-      # be the old guessable behavior; over 50 draws at least one gap must exceed 1.
-      ints =
+      # 2-byte field: step_bits = 8, so same-ms gaps lie in [1, 256]. A constant
+      # +1 would be the old guessable behavior; over the burst at least one gap
+      # must exceed 1. A high random seed can overflow the field mid-burst, which
+      # spins the time forward 1ms and reseeds (the gap across that boundary is a
+      # fresh seed, not a step), so compare only consecutive draws that stayed in
+      # the same millisecond.
+      draws =
         for _ <- 1..50 do
-          {_t, r} = Monotonic.next("vary", 2, 90_000)
-          :binary.decode_unsigned(r)
+          {t, r} = Monotonic.next("vary", 2, 90_000)
+          {t, :binary.decode_unsigned(r)}
         end
 
-      gaps = Enum.zip(ints, tl(ints)) |> Enum.map(fn {a, b} -> b - a end)
+      gaps =
+        draws
+        |> Enum.zip(tl(draws))
+        |> Enum.filter(fn {{t1, _}, {t2, _}} -> t1 == t2 end)
+        |> Enum.map(fn {{_, a}, {_, b}} -> b - a end)
 
+      assert gaps != []
       assert Enum.all?(gaps, &(&1 in 1..256))
       assert Enum.any?(gaps, &(&1 > 1))
     end
@@ -64,10 +83,11 @@ defmodule UXID.MonotonicTest do
     end
 
     test "clock moving backward keeps the last time and still advances" do
-      {t1, r1} = Monotonic.next("back", 3, 20_000)
-      {t2, r2} = Monotonic.next("back", 3, 19_995)
+      {kept, r1, r2} = stepped_pair("back", 3, 20_000, 19_995)
 
-      assert t2 == t1
+      # The backward clock (19_995 < 20_000) keeps the earlier last_time and still
+      # advances the counter by a forward step.
+      assert kept == 20_000
       assert :binary.decode_unsigned(r2) > :binary.decode_unsigned(r1)
     end
 
@@ -88,12 +108,12 @@ defmodule UXID.MonotonicTest do
     end
 
     test "distinct prefixes maintain independent sequences" do
-      {_t, a} = Monotonic.next("a", 2, 40_000)
+      {_kept, a, a2} = stepped_pair("a", 2, 40_000, 40_000)
       {_t, b} = Monotonic.next("b", 2, 40_000)
-      {_t, a2} = Monotonic.next("a", 2, 40_000)
 
       assert :binary.decode_unsigned(a2) > :binary.decode_unsigned(a)
-      # b's sequence is unaffected by a's advances.
+      # b lives under a separate key ({prefix, rand_size}), so a's advances leave
+      # it untouched — a fresh, correctly sized seed.
       assert byte_size(b) == 2
     end
 
@@ -106,8 +126,7 @@ defmodule UXID.MonotonicTest do
     end
 
     test "nil prefix is a valid, independent sequence" do
-      {_t, r1} = Monotonic.next(nil, 2, 60_000)
-      {_t, r2} = Monotonic.next(nil, 2, 60_000)
+      {_kept, r1, r2} = stepped_pair(nil, 2, 60_000, 60_000)
       assert :binary.decode_unsigned(r2) > :binary.decode_unsigned(r1)
     end
   end
@@ -127,11 +146,14 @@ defmodule UXID.MonotonicTest do
 
   describe "process isolation" do
     test "a spawned process gets an independent sequence" do
-      {_t, r1} = Monotonic.next("iso", 2, 80_000)
+      # Use a 4-byte field so a fresh, independent child seed coincidentally
+      # landing in the parent's forward step window is a ~1-in-2^16 event (as in
+      # the "reseeds when the millisecond advances" test), not ~1-in-256.
+      {_t, r1} = Monotonic.next("iso", 4, 80_000)
       parent = self()
 
       spawn(fn ->
-        {_t, other} = Monotonic.next("iso", 2, 80_000)
+        {_t, other} = Monotonic.next("iso", 4, 80_000)
         send(parent, {:child, other})
       end)
 
@@ -145,7 +167,7 @@ defmodule UXID.MonotonicTest do
       # The child starts its own sequence (a fresh seed), not a continuation of
       # the parent's — so it does not land in the parent's forward step window.
       u1 = :binary.decode_unsigned(r1)
-      refute :binary.decode_unsigned(child) in (u1 + 1)..(u1 + (1 <<< 8))
+      refute :binary.decode_unsigned(child) in (u1 + 1)..(u1 + (1 <<< 16))
     end
   end
 
@@ -157,15 +179,44 @@ defmodule UXID.MonotonicTest do
     :binary.decode_unsigned(codec.rand)
   end
 
-  # Decides whether `opts` yields a monotonic sequence. A monotonic same-ms burst
-  # is always strictly increasing and unique; a random one is sorted only by
-  # chance (~1/n!). A 20-draw burst makes false positives ~1/20! — effectively
-  # zero — so this reliably distinguishes random-step monotonic from pure random,
-  # which a single `> ` pair (~50%) cannot. All draws share one ms; the field
-  # sizes here never overflow in 20 steps, so the raw rand ints stay ordered.
+  # The emitted `{time, rand_int}` pair. The time matters because a same-ms burst
+  # that overflows the field spins the time forward 1ms and reseeds (see
+  # UXID.Monotonic) — those draws belong to a new millisecond, not the same run.
+  defp rand_pair(opts) do
+    {:ok, codec} = UXID.new(opts)
+    {codec.time, :binary.decode_unsigned(codec.rand)}
+  end
+
+  # A first draw plus a second consecutive draw that stayed in the same emitted
+  # millisecond — a pure forward step, no overflow reseed. `t2` is the wall-clock
+  # handed to the second draw; pass `t2 < t1` to model a backward clock. A high
+  # random seed occasionally overflows the field on the step, which the module
+  # handles by spinning the time forward and reseeding; retry past that rare case
+  # so the forward-step assertions stay deterministic. Returns `{kept_time, r1, r2}`.
+  defp stepped_pair(prefix, rand_size, t1, t2) do
+    Monotonic.reset(prefix, rand_size)
+    {kept, r1} = Monotonic.next(prefix, rand_size, t1)
+
+    case Monotonic.next(prefix, rand_size, t2) do
+      {^kept, r2} -> {kept, r1, r2}
+      _overflowed -> stepped_pair(prefix, rand_size, t1, t2)
+    end
+  end
+
+  # Decides whether `opts` yields a monotonic sequence. A monotonic burst is
+  # strictly increasing and unique *within a millisecond*; a random one shares one
+  # ms and is sorted only by chance (~1/n!). A 20-draw burst makes false positives
+  # ~1/20! — effectively zero. We group draws by their emitted ms and check each
+  # run on its own: a high random seed can overflow the field mid-burst, which
+  # starts a fresh run in the next ms, so comparing the raw ints across that
+  # boundary would spuriously fail.
   defp monotonic?(opts) do
-    ints = for _ <- 1..20, do: rand_int(opts)
-    ints == Enum.sort(ints) and length(Enum.uniq(ints)) == 20
+    runs =
+      for(_ <- 1..20, do: rand_pair(opts))
+      |> Enum.chunk_by(fn {time, _int} -> time end)
+      |> Enum.map(fn run -> Enum.map(run, fn {_time, int} -> int end) end)
+
+    Enum.all?(runs, fn ints -> ints == Enum.sort(ints) and ints == Enum.uniq(ints) end)
   end
 
   describe "monotonic generation via generate!/1" do
@@ -201,7 +252,11 @@ defmodule UXID.MonotonicTest do
       {:ok, c1} = UXID.new(size: :small, time: 1_700_000_200_000, monotonic: true)
       {:ok, c2} = UXID.new(size: :small, time: 1_700_000_199_995, monotonic: true)
 
-      assert c2.time == c1.time
+      # The backward clock never emits a smaller time: normally it keeps c1's time,
+      # and in the rare case the field overflows on the step it spins 1ms forward —
+      # never backward. (Exact keep-the-last-time is covered at the Monotonic unit
+      # level.) The encoded ID still strictly increases either way.
+      assert c2.time >= c1.time
       assert c2.string > c1.string
     end
 

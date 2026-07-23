@@ -1,5 +1,8 @@
 defmodule UXID.DecoderTest do
-  use ExUnit.Case, async: true
+  # async: false — a test here mutates global config (Application.put_env). ExUnit
+  # never runs a sync module concurrently with async ones, so this keeps that
+  # global from bleeding into other tests mid-run.
+  use ExUnit.Case, async: false
   import Bitwise
 
   alias UXID.{Codec, Decoder}

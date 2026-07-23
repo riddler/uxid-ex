@@ -468,7 +468,8 @@ defmodule UXID.Registry do
     unknown = for {key, mod} <- markers, not Map.has_key?(by_key, key), do: {key, mod}
 
     unless unknown == [] do
-      detail = Enum.map_join(unknown, ", ", fn {key, mod} -> "#{inspect(key)} (#{inspect(mod)})" end)
+      detail =
+        Enum.map_join(unknown, ", ", fn {key, mod} -> "#{inspect(key)} (#{inspect(mod)})" end)
 
       raise ArgumentError,
             "UXID markers reference keys not registered in #{inspect(module)}: " <> detail

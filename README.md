@@ -7,18 +7,18 @@
 **U**ser e**X**perience focused **ID**entifiers (UXIDs) are prefixed, K-sortable,
 Stripe-style identifiers like `usr_01epey2p06tr1rtv07xa82zgjj`. They are:
 
-* Descriptive — the prefix names the resource on sight (aids debugging and investigation)
-* Copy/paste friendly — double-clicking selects the entire ID
-* Tunable in size — shortened for low-cardinality resources
+* Descriptive - the prefix names the resource on sight (aids debugging and investigation)
+* Copy/paste friendly - double-clicking selects the entire ID
+* Tunable in size - shortened for low-cardinality resources
 * Secure against enumeration attacks
-* Application-generated — not tied to the datastore
-* K-sortable — lexicographically sortable by time, so they index well
-* Coordination-free — no startup or generation-time coordination required
-* Unlikely to collide — more randomness, lower odds
-* Human-transmissible — easy to read out accurately over the phone
-* Optionally **monotonic** — a burst within one millisecond stays unique and strictly ordered
-* Optionally **deterministic** — the same input string always maps to the same ID (UUIDv5-style), marked with a leading `z` and sorted after time-based IDs
-* Optionally **governed by a registry** — one module keeps every prefix unique and maps an ID back to its resource
+* Application-generated - not tied to the datastore
+* K-sortable - lexicographically sortable by time, so they index well
+* Coordination-free - no startup or generation-time coordination required
+* Unlikely to collide - more randomness, lower odds
+* Human-transmissible - easy to read out accurately over the phone
+* Optionally **monotonic** - a burst within one millisecond stays unique and strictly ordered
+* Optionally **deterministic** - the same input string always maps to the same ID (UUIDv5-style), marked with a leading `z` and sorted after time-based IDs
+* Optionally **governed by a registry** - one module keeps every prefix unique and maps an ID back to its resource
 
 Many of the concepts of [Stripe IDs][stripe_ids_url] have been used in this library.
 
@@ -34,7 +34,7 @@ def deps do
 end
 ```
 
-Ecto is an optional dependency — UXID only pulls it in if your app already uses it.
+Ecto is an optional dependency - UXID only pulls it in if your app already uses it.
 
 ## Quick start
 
@@ -59,7 +59,7 @@ UXID.generate!(prefix: "usr", from: "alice@example.com")
 
 ## Ecto in 30 seconds
 
-UXIDs work as Ecto fields, including primary keys — set the field type to `UXID`
+UXIDs work as Ecto fields, including primary keys - set the field type to `UXID`
 and pass the same options you'd pass to `generate!/1`:
 
 ```elixir
@@ -73,19 +73,19 @@ defmodule YourApp.User do
 end
 ```
 
-See the [Ecto Integration guide](guides/ecto.md) for foreign keys, strict
+See the [Ecto Integration guide][guide_ecto_url] for foreign keys, strict
 validation, and migrating a `uuid` column to UXIDs.
 
 ## Guides
 
 The five-minute path is above; each area has a dedicated guide:
 
-* **[Sizes & Encoding](guides/sizes.md)** — the t-shirt sizes, how much randomness each carries, and compact-time mode for extra collision resistance.
-* **[Ecto Integration](guides/ecto.md)** — primary/foreign keys, strict `validate:` casting, `allow_uuid` coexistence, and `UXID.valid?/2`.
-* **[Monotonic IDs](guides/monotonic.md)** — guaranteed same-millisecond uniqueness and ordering, the security tradeoff, and when to use it.
-* **[Deterministic IDs](guides/deterministic.md)** — name-based (UUIDv5-style) IDs where the same input always maps to the same ID, with the prefix as the namespace.
-* **[Prefix Registry](guides/registry.md)** — a compile-time DSL that keeps every prefix unique, routes an ID back to its schema, works in layered/umbrella apps, and exports a cross-source JSON manifest.
-* **[Configuration](guides/configuration.md)** — every `config :uxid` key in one place, with per-call vs. global precedence.
+* **[Sizes & Encoding][guide_sizes_url]** - the t-shirt sizes, how much randomness each carries, and compact-time mode for extra collision resistance.
+* **[Ecto Integration][guide_ecto_url]** - primary/foreign keys, strict `validate:` casting, `allow_uuid` coexistence, and `UXID.valid?/2`.
+* **[Monotonic IDs][guide_monotonic_url]** - guaranteed same-millisecond uniqueness and ordering, the security tradeoff, and when to use it.
+* **[Deterministic IDs][guide_deterministic_url]** - name-based (UUIDv5-style) IDs where the same input always maps to the same ID, with the prefix as the namespace.
+* **[Prefix Registry][guide_registry_url]** - a compile-time DSL that keeps every prefix unique, routes an ID back to its schema, works in layered/umbrella apps, and exports a cross-source JSON manifest.
+* **[Configuration][guide_configuration_url]** - every `config :uxid` key in one place, with per-call vs. global precedence.
 
 ## Documentation
 
@@ -100,6 +100,17 @@ UXID is released under the [MIT License](LICENSE).
 <!-- LINKS -->
 [hex_project_url]: https://hex.pm/packages/uxid
 [hexdocs_project_url]: https://hexdocs.pm/uxid
+
+<!-- Guide links are absolute HexDocs URLs on purpose. A relative link like
+     `guides/registry.md` renders correctly on GitHub and is rewritten to
+     `registry.html` by ExDoc, but hex.pm rewrites it to the raw-file preview
+     (repo.hex.pm/preview/.../registry.md), which serves plain-text Markdown. -->
+[guide_sizes_url]: https://hexdocs.pm/uxid/sizes.html
+[guide_ecto_url]: https://hexdocs.pm/uxid/ecto.html
+[guide_monotonic_url]: https://hexdocs.pm/uxid/monotonic.html
+[guide_deterministic_url]: https://hexdocs.pm/uxid/deterministic.html
+[guide_registry_url]: https://hexdocs.pm/uxid/registry.html
+[guide_configuration_url]: https://hexdocs.pm/uxid/configuration.html
 [mit_license_url]: http://opensource.org/licenses/MIT
 [uxid_talk_url]: https://www.youtube.com/watch?v=YIIJClhjxOA
 [stripe_ids_url]: https://dev.to/stripe/designing-apis-for-humans-object-ids-3o5a

@@ -2,24 +2,33 @@
 
 ## Upcoming
 
+* Makes **deterministic minting reachable through `UXID.Registry`** - 2.7.0 shipped `from:` but the registry's generated `generate!/1` was arity-1 and dropped caller options, so a registry user had to drop to the plain API and hand-assemble prefix/size:
+  - Generated `generate!/2` and `generate/2` merge caller options over the registry's, so `MyApp.IDs.generate!(:export, from: natural_key)` mints deterministically by key; existing arity-1 calls are unchanged
+  - `:prefix` and `:size` belong to the key and raise if overridden - the registry's contract is that a key determines its shape; the intended override surface is `:from`, `:case`, `:monotonic`, `:compact_time`, `:rand_size`
+  - New `defid :export, deterministic: true` declares a key as *always* derived: minting it without `from:` raises, so one call site cannot derive while another mints randomly. It is a requirement, not a permission - an undeclared key may still be minted with `from:`
+  - `deterministic` joins the JSON manifest (as a real boolean) so a Postgres function or JS client knows *which scheme* a key uses; the hash rule itself still comes from the deterministic guide
+  - Ecto `autogenerate` remains unwired for `from:` (no per-row input exists), and the declaration cannot reach it - a `deterministic: true` key must be minted in a changeset, not with `autogenerate: true`
+* Adds `defid :enrichment, legacy: <term>` - opaque app metadata with no library behavior, so a "deliberately still on the old scheme, retrofit deferred" backlog lives in the registry rather than a moduledoc
+* **Breaking:** an unrecognized `defid` option is now a compile error instead of being silently ignored (`defid :org, prefix: "org", validat: false` previously defaulted `validate` to `true` with no warning) - a sharp edge for a registry whose selling point is compile-time checking
+
 ## 2.7.0 / 2026-07-23
 
-* Adds opt-in **deterministic (name-based) IDs** via the `from:` option on `generate/1`, `generate!/1`, and `new/1` — the same input string always maps to the same ID (UUIDv5-style), across processes and machines:
+* Adds opt-in **deterministic (name-based) IDs** via the `from:` option on `generate/1`, `generate!/1`, and `new/1` - the same input string always maps to the same ID (UUIDv5-style), across processes and machines:
   - Body is a truncated **SHA-256** of the input (SHA-256, not the deprecated SHA-1 of real UUIDv5, since no wire interop is needed)
   - The **prefix is the namespace** (folded into the hash), so the same string under two prefixes yields two unrelated bodies; no separate `namespace:` option
   - Marked with a leading `z`/`Z` (Crockford value 31): self-identifying and sorts *after* every time-based ID; not K-sortable among themselves
-  - Reserves value 31 in compact-time encoding so `z`/`Z` is an unambiguous scheme marker — compact timestamps now raise past ~mid-2038 (standard 48-bit timestamps unaffected)
-  - Deterministic bodies reuse the standard (non-compact) lengths per `:size`, spending the whole body (minus the marker) on hash bits (45–125 bits)
+  - Reserves value 31 in compact-time encoding so `z`/`Z` is an unambiguous scheme marker - compact timestamps now raise past ~mid-2038 (standard 48-bit timestamps unaffected)
+  - Deterministic bodies reuse the standard (non-compact) lengths per `:size`, spending the whole body (minus the marker) on hash bits (45-125 bits)
   - `decode/1` reports `deterministic: true` with `time: nil`; adds `UXID.deterministic?/1`
   - `from:` requires a string (raises otherwise); `from:` with an explicit `monotonic: true` raises (deterministic vs. burst-random); Ecto `autogenerate` is intentionally not wired for `from:` (mint explicitly in a changeset)
-  - Not a secret: a hash of a *known* input is exactly as guessable as the input — do not derive an ID from a low-entropy secret and treat it as unguessable
+  - Not a secret: a hash of a *known* input is exactly as guessable as the input - do not derive an ID from a low-entropy secret and treat it as unguessable
 
 ## 2.6.0 / 2026-07-17
 
 * Adds runtime prefix → schema routing for **layered apps**, so a `UXID.Registry` can live at an app's base layer without a `schema:` literal inverting the dependency direction:
-  - New `UXID.Registered` mixin (`use UXID.Registered, key: :contact`) marks a schema under a registry key; the reference points *down* (schema names a key), so the base-layer registry never references an upper-layer module — `Boundary`/`xref` stay clean
-  - `MyApp.IDs.verify!(otp_apps: [...])` / `build_routes!/1` assemble the routing table at boot by scanning the given apps for the marker (via reflection, no compile-visible module reference) and store it in `:persistent_term`; `verify!/1` also validates it — raising on a marker that names an unregistered key, two modules claiming one key, or a `route: true` key left unmapped
-  - Call `verify!/1` from your top app's `start/2` so every boot (prod, dev, CI's `mix test`) re-verifies — no bespoke CI job needed
+  - New `UXID.Registered` mixin (`use UXID.Registered, key: :contact`) marks a schema under a registry key; the reference points *down* (schema names a key), so the base-layer registry never references an upper-layer module - `Boundary`/`xref` stay clean
+  - `MyApp.IDs.verify!(otp_apps: [...])` / `build_routes!/1` assemble the routing table at boot by scanning the given apps for the marker (via reflection, no compile-visible module reference) and store it in `:persistent_term`; `verify!/1` also validates it - raising on a marker that names an unregistered key, two modules claiming one key, or a `route: true` key left unmapped
+  - Call `verify!/1` from your top app's `start/2` so every boot (prod, dev, CI's `mix test`) re-verifies - no bespoke CI job needed
   - `schema_for/1` now resolves a compile-time `schema:` literal first, then the self-registration table, so flat apps are unchanged and layered apps opt in per entry with `route: true`
   - Adds `prefixes/0` (convenience for app-side "every schema draws from the registry" conformance tests) and `routes/0`
 * Restructures the documentation: a slimmed README plus dedicated guides (Sizes & Encoding, Ecto Integration, Monotonic IDs, Prefix Registry, Configuration) that render on both GitHub and HexDocs
@@ -34,19 +43,19 @@
   - Registers `defid`/`retired` as paren-free locals and exports the rule for consuming apps
 * Adds opt-in monotonic generation via the `monotonic` option (per-call/per-field) or `config :uxid, :monotonic` global policy:
   - Accepts `true`/`false`, or a list of sizes (alias-aware, e.g. `[:small]` matches both `:small` and `:s`)
-  - Within a millisecond the random field is seeded once then advanced by a random positive step (uniform over `[1, 2^(bits/2)]`, drawn from the CSPRNG), guaranteeing uniqueness and K-sortability for a burst — process-local, `async: true` safe, no GenServer/ETS
-  - Per-call option takes precedence over the global policy; off by default (consecutive IDs stay in a bounded window — a mitigation, not cryptographic unpredictability — weakening enumeration resistance)
+  - Within a millisecond the random field is seeded once then advanced by a random positive step (uniform over `[1, 2^(bits/2)]`, drawn from the CSPRNG), guaranteeing uniqueness and K-sortability for a burst - process-local, `async: true` safe, no GenServer/ETS
+  - Per-call option takes precedence over the global policy; off by default (consecutive IDs stay in a bounded window - a mitigation, not cryptographic unpredictability - weakening enumeration resistance)
   - `:xs`/`:xsmall` auto-enable `compact_time` so there is a field to increment; explicit `compact_time: false` on those sizes with monotonic on raises
-  - Wire format is byte-identical to a random UXID — no decoder changes
+  - Wire format is byte-identical to a random UXID - no decoder changes
 
 ## 2.4.0 / 2026-07-09
 
 * Adds `UXID.valid?/2` for structural validation of a UXID string (optional `:prefix` and `:delimiter`)
 * Adds opt-in strict casting for the Ecto type via `validate: true` on a field:
   - Accepts a well-formed UXID carrying the field's configured `:prefix`, or a legacy bare UUID string
-  - Rejects malformed values (empty, wrong prefix, non–Base32) with `:error`
+  - Rejects malformed values (empty, wrong prefix, non-Base32) with `:error`
   - UUID coexistence is on by default (eases `uuid` → `text` column migrations); disable with `allow_uuid: false`
-  - Default casting is unchanged (any binary passes) when `validate` is not set — fully backwards compatible
+  - Default casting is unchanged (any binary passes) when `validate` is not set - fully backwards compatible
 * Adds default_delimiter config accessor
 
 ## 2.3.0 / 2026-01-16

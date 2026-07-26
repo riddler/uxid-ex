@@ -2,7 +2,7 @@ defmodule UXID.Registry do
   @moduledoc """
   A compile-time registry of an application's UXID prefixes.
 
-  Prefixes only deliver their value — "the ID names its resource on sight" — if
+  Prefixes only deliver their value - "the ID names its resource on sight" - if
   they are globally unique and well-formed across an app. `use UXID.Registry`
   moves that governance out of hand-rolled CI tests and into the compiler, and
   turns the same declarations into a runtime routing table (prefix → schema)
@@ -26,9 +26,9 @@ defmodule UXID.Registry do
 
   ## Compile-time guarantees
 
-    * every `:prefix` is checked against `:prefix_format` — a malformed prefix is
+    * every `:prefix` is checked against `:prefix_format` - a malformed prefix is
       a compile error;
-    * all prefixes (active *and* `retired`) are checked for uniqueness — a
+    * all prefixes (active *and* `retired`) are checked for uniqueness - a
       duplicate is a compile error. This replaces the per-app runtime uniqueness
       test.
 
@@ -36,39 +36,44 @@ defmodule UXID.Registry do
 
   By key (minting and schema configuration):
 
-      MyApp.IDs.generate!(:org)   # => "org_01h…"
+      MyApp.IDs.generate!(:org)   # => "org_01h..."
+      MyApp.IDs.generate!(:export, from: phone)  # deterministic - see generate!/2
       MyApp.IDs.prefix(:org)      # => "org"
       MyApp.IDs.size(:org)        # => :medium
       MyApp.IDs.schema(:org)      # => MyApp.Org
       MyApp.IDs.field_opts(:org)  # => [prefix: "org", size: :medium, validate: true, allow_uuid: true, delimiter: "_"]
       MyApp.IDs.all()             # => [%{key: :org, prefix: "org", ...}, ...]
 
-  Cross-source single source of truth — emit a JSON manifest so a database
+  Cross-source single source of truth - emit a JSON manifest so a database
   function or a mobile/JS generator mints prefixes the same way the app does:
 
       MyApp.IDs.manifest()        # => [%{"key" => "org", "prefix" => "org", "size" => "medium", ...}]
-      MyApp.IDs.manifest_json()   # => ~s([{"key":"org","prefix":"org","size":"medium","category":"account"},...])
+      MyApp.IDs.manifest_json()   # => ~s([{"key":"org",...,"category":"account","deterministic":false},...])
 
-  `field_opts/1` is the single-source-of-truth hook — a schema spreads it instead
+  The manifest's `deterministic` flag tells a non-Elixir generator *which scheme*
+  a key uses, not how to implement it - see `guides/deterministic.md` for the
+  hash rule such a generator must reproduce.
+
+  `field_opts/1` is the single-source-of-truth hook - a schema spreads it instead
   of restating anything:
 
       @primary_key {:id, UXID, [autogenerate: true] ++ MyApp.IDs.field_opts(:org)}
 
-  By ID string (runtime routing — see "Parsing" below):
+  By ID string (runtime routing - see "Parsing" below):
 
-      MyApp.IDs.known?("org_01h…")      # => true   (cheap prefix-only membership)
-      MyApp.IDs.key_for("org_01h…")     # => :org
-      MyApp.IDs.schema_for("org_01h…")  # => MyApp.Org
-      MyApp.IDs.resolve("org_01h…")     # => %{key: :org, schema: MyApp.Org, ...}
+      MyApp.IDs.known?("org_01h...")      # => true   (cheap prefix-only membership)
+      MyApp.IDs.key_for("org_01h...")     # => :org
+      MyApp.IDs.schema_for("org_01h...")  # => MyApp.Org
+      MyApp.IDs.resolve("org_01h...")     # => %{key: :org, schema: MyApp.Org, ...}
 
   ## Parsing
 
   Lookups split an ID into `{prefix, body}` on the **last** delimiter. This is
   unambiguous without consulting the registry, because a UXID body is Crockford
-  Base32 and therefore never contains the delimiter: in `in_ref_01h…` every `_`
+  Base32 and therefore never contains the delimiter: in `in_ref_01h...` every `_`
   belongs to the prefix except the final joining one. The registry is consulted
-  only *after* the split, to answer membership/type — an unregistered but
-  well-formed string like `nope_01h…` parses fine yet resolves to `nil`.
+  only *after* the split, to answer membership/type - an unregistered but
+  well-formed string like `nope_01h...` parses fine yet resolves to `nil`.
 
   Because of that, the `:delimiter` must be a character that cannot appear in a
   Base32 body (`"_"` or `"-"`); a letter or digit is rejected at compile time.
@@ -81,7 +86,7 @@ defmodule UXID.Registry do
   that is fine, and `schema_for/1` resolves it with no further setup. In a
   **layered** app the registry usually lives at the base layer (so every layer
   can depend down on it to mint IDs and read `field_opts/1`), while the schemas
-  it routes to live above it — so naming them inverts the dependency direction.
+  it routes to live above it - so naming them inverts the dependency direction.
 
   To keep the direction correct, omit `schema:` and let each schema register
   itself under its key with `UXID.Registered`. The reference then points *down*
@@ -99,7 +104,7 @@ defmodule UXID.Registry do
       end
 
   At boot, `verify!/1` scans the given OTP apps for the marker, assembles the
-  prefix → schema routing table into `:persistent_term`, and validates it —
+  prefix → schema routing table into `:persistent_term`, and validates it -
   raising if a marker names an unregistered key, two modules claim one key, or a
   `route: true` key resolves to no schema. Wire it into your top app's `start/2`
   so every boot (prod, dev, and CI's `mix test`) re-verifies:
@@ -128,11 +133,11 @@ defmodule UXID.Registry do
   Splits a UXID string into `{prefix, body}` on the last occurrence of
   `delimiter`. Returns `{nil, string}` when the delimiter is absent.
 
-      iex> UXID.Registry.split_last("in_ref_01h2x…", "_")
-      {"in_ref", "01h2x…"}
+      iex> UXID.Registry.split_last("in_ref_01h2x...", "_")
+      {"in_ref", "01h2x..."}
 
-      iex> UXID.Registry.split_last("01h2x…", "_")
-      {nil, "01h2x…"}
+      iex> UXID.Registry.split_last("01h2x...", "_")
+      {nil, "01h2x..."}
   """
   @spec split_last(String.t(), String.t()) :: {String.t() | nil, String.t()}
   def split_last(string, delimiter) when is_binary(string) and is_binary(delimiter) do
@@ -165,8 +170,17 @@ defmodule UXID.Registry do
 
   @doc """
   Registers an id under `key`. Requires `:prefix`; `:size`, `:schema`,
-  `:category`, `:validate`, and `:allow_uuid` are optional and fall back to the
-  registry defaults.
+  `:category`, `:validate`, `:allow_uuid`, and `:route` are optional and fall
+  back to the registry defaults.
+
+  Two further options carry no shape information:
+
+    * `:deterministic` - when `true`, the key is derived by contract and
+      `generate!/2` raises unless given `from:`. See `guides/deterministic.md`.
+    * `:legacy` - opaque app metadata (any term), surfaced on `all/0` so a
+      migration backlog lives in the registry rather than a moduledoc.
+
+  An unrecognized option is a compile error.
   """
   defmacro defid(key, opts \\ []) do
     quote bind_quoted: [key: key, opts: opts] do
@@ -176,7 +190,7 @@ defmodule UXID.Registry do
 
   @doc """
   Reserves a prefix so it participates in the uniqueness check but is never
-  generated — mirroring "identifiers are never reused". Accepts a string or atom.
+  generated - mirroring "identifiers are never reused". Accepts a string or atom.
   """
   defmacro retired(prefix) do
     quote bind_quoted: [prefix: prefix] do
@@ -186,7 +200,7 @@ defmodule UXID.Registry do
 
   # This macro emits the registry's whole public API as one quoted block, so its
   # cyclomatic count reflects the number of generated functions, not branching
-  # logic — the actual branching lives in the small runtime helpers below.
+  # logic - the actual branching lives in the small runtime helpers below.
   # credo:disable-for-next-line Credo.Check.Refactor.CyclomaticComplexity
   defmacro __before_compile__(env) do
     module = env.module
@@ -232,13 +246,14 @@ defmodule UXID.Registry do
       @doc "The registered keys, in declaration order."
       def keys(), do: unquote(Enum.map(entries, & &1.key))
 
-      @doc "Reserved (retired) prefixes — unique-checked but never generated."
+      @doc "Reserved (retired) prefixes - unique-checked but never generated."
       def reserved(), do: @uxid_reserved_data
 
       @doc """
-      A JSON-safe manifest of the registered ids — a list of maps with string
-      keys and scalar (`prefix`, `size`, `category`, `key`) values, `nil` where
-      unset. This is the cross-source single source of truth: emit it so a
+      A JSON-safe manifest of the registered ids - a list of maps with string
+      keys and scalar (`key`, `prefix`, `size`, `category`, `deterministic`)
+      values, `nil` where unset. This is the cross-source single source of truth:
+      emit it so a
       database function or a mobile/JS generator mints prefixes the same way the
       Elixir app does. Encode it with any JSON library, or use `manifest_json/0`.
       """
@@ -271,13 +286,30 @@ defmodule UXID.Registry do
       """
       def field_opts(key), do: UXID.Registry.field_opts_for(fetch!(key), @uxid_delimiter_str)
 
-      @doc "Generates a UXID for `key`. See `UXID.generate!/1`."
-      def generate!(key),
-        do: UXID.generate!(UXID.Registry.gen_opts(fetch!(key), @uxid_delimiter_str))
+      @doc """
+      Generates a UXID for `key`. See `UXID.generate!/1`.
 
-      @doc "Generates a UXID for `key`, wrapped in `{:ok, uxid}`."
-      def generate(key),
-        do: UXID.generate(UXID.Registry.gen_opts(fetch!(key), @uxid_delimiter_str))
+      `opts` are merged over the registry's, so a call site can pass anything the
+      entry does not own - most usefully `from:` for a deterministic
+      (name-based) ID:
+
+          MyApp.IDs.generate!(:faraday_export, from: phone)
+          MyApp.IDs.generate!(:share, monotonic: false)
+
+      `:prefix` and `:size` belong to the key and raise `ArgumentError` if
+      passed - the registry's contract is that a key determines both. The
+      intended override surface is `:from`, `:case`, `:monotonic`,
+      `:compact_time`, and `:rand_size`.
+      """
+      def generate!(key, opts \\ []),
+        do: UXID.generate!(UXID.Registry.gen_opts(fetch!(key), @uxid_delimiter_str, opts))
+
+      @doc """
+      Generates a UXID for `key`, wrapped in `{:ok, uxid}`. Takes the same
+      `opts` as `generate!/2`.
+      """
+      def generate(key, opts \\ []),
+        do: UXID.generate(UXID.Registry.gen_opts(fetch!(key), @uxid_delimiter_str, opts))
 
       @doc """
       The full registry entry for an ID string, or `nil` if its prefix is not
@@ -287,7 +319,7 @@ defmodule UXID.Registry do
       def resolve(id), do: UXID.Registry.resolve_id(@uxid_index, id, @uxid_delimiter_str)
 
       @doc """
-      Cheap prefix-only membership check for an ID string — the pre-filter for an
+      Cheap prefix-only membership check for an ID string - the pre-filter for an
       IDOR scan path. Does not validate the body.
       """
       def known?(id), do: UXID.Registry.known_id?(@uxid_index, id, @uxid_delimiter_str)
@@ -296,7 +328,7 @@ defmodule UXID.Registry do
       def key_for(id), do: UXID.Registry.field_of(resolve(id), :key)
 
       @doc """
-      The schema module for an ID string (or `nil`) — the prefix→schema map.
+      The schema module for an ID string (or `nil`) - the prefix→schema map.
       Resolves a compile-time `schema:` literal first, then the runtime routing
       table built from schema self-registration (see `verify!/1`).
       """
@@ -336,8 +368,8 @@ defmodule UXID.Registry do
       self-registration). Raises `ArgumentError` listing every problem, returns
       `:ok` otherwise.
 
-      Call from your top app's `start/2` so every boot — prod, dev, and CI's
-      `mix test` — verifies:
+      Call from your top app's `start/2` so every boot - prod, dev, and CI's
+      `mix test` - verifies:
 
           def start(_type, _args) do
             MyApp.IDs.verify!(otp_apps: [:my_app])
@@ -375,9 +407,50 @@ defmodule UXID.Registry do
     ]
   end
 
+  # Options a key owns: they are derived from the entry and a call site may not
+  # override them, or the minted ID would lie about its key.
+  @pinned_gen_opts [:prefix, :size]
+
   @doc false
-  def gen_opts(entry, delimiter),
-    do: [prefix: entry.prefix, size: entry.size, delimiter: delimiter]
+  def gen_opts(entry, delimiter, overrides \\ []) do
+    reject_pinned!(entry, overrides)
+
+    opts =
+      [prefix: entry.prefix, size: entry.size, delimiter: delimiter]
+      |> Keyword.merge(overrides)
+
+    require_from!(entry, opts)
+
+    opts
+  end
+
+  defp reject_pinned!(entry, overrides) do
+    case Enum.filter(@pinned_gen_opts, &Keyword.has_key?(overrides, &1)) do
+      [] ->
+        :ok
+
+      pinned ->
+        raise ArgumentError,
+              "#{inspect(pinned)} cannot be overridden when generating by key - " <>
+                "#{inspect(entry.key)} is registered with prefix #{inspect(entry.prefix)} " <>
+                "and size #{inspect(entry.size)}. Use UXID.generate!/1 directly if you " <>
+                "really need a one-off shape."
+    end
+  end
+
+  # A key declared `deterministic: true` is derived by contract, so minting it
+  # without `from:` would silently produce a second ID shape for one entity.
+  defp require_from!(%{deterministic: true, key: key}, opts) do
+    if is_nil(Keyword.get(opts, :from)) do
+      raise ArgumentError,
+            "key #{inspect(key)} is declared deterministic: true and must be minted with " <>
+              "from: - e.g. generate!(#{inspect(key)}, from: natural_key)"
+    end
+
+    :ok
+  end
+
+  defp require_from!(_entry, _opts), do: :ok
 
   @doc false
   def resolve_id(index, id, delimiter) when is_binary(id) do
@@ -427,7 +500,7 @@ defmodule UXID.Registry do
   end
 
   # Scans the given OTP apps for modules carrying the `UXID.Registered` marker,
-  # force-loading each so `function_exported?/3` sees it — that force-load is
+  # force-loading each so `function_exported?/3` sees it - that force-load is
   # what makes the table complete at boot even for otherwise-lazy modules.
   @doc false
   def collect_markers(apps) do
@@ -508,7 +581,7 @@ defmodule UXID.Registry do
     end
   end
 
-  @manifest_fields [:key, :prefix, :size, :category]
+  @manifest_fields [:key, :prefix, :size, :category, :deterministic]
 
   @doc false
   def manifest(entries) do
@@ -525,8 +598,11 @@ defmodule UXID.Registry do
   end
 
   # A registry field value rendered as a JSON-safe scalar: atoms become strings,
-  # nil stays nil (JSON null), strings pass through.
+  # nil stays nil (JSON null), booleans and strings pass through. The boolean
+  # clauses must precede the atom clause, which would otherwise stringify them.
   defp scalar(nil), do: nil
+  defp scalar(true), do: true
+  defp scalar(false), do: false
   defp scalar(value) when is_atom(value), do: Atom.to_string(value)
   defp scalar(value) when is_binary(value), do: value
 
@@ -540,6 +616,8 @@ defmodule UXID.Registry do
   end
 
   defp json_value(nil), do: "null"
+  defp json_value(true), do: "true"
+  defp json_value(false), do: "false"
   defp json_value(value) when is_binary(value), do: json_string(value)
 
   defp json_string(value), do: IO.iodata_to_binary([?", escape(value), ?"])
@@ -564,6 +642,8 @@ defmodule UXID.Registry do
       raise ArgumentError, "defid key must be an atom in #{inspect(module)}, got: #{inspect(key)}"
     end
 
+    validate_opt_names!(key, opts, module)
+
     prefix = Keyword.get(opts, :prefix)
 
     unless is_binary(prefix) do
@@ -585,8 +665,42 @@ defmodule UXID.Registry do
       # A key "must route" (verify!/1 fails if it resolves to no schema) when it
       # carries a compile-time `schema:` literal, or is explicitly opted in with
       # `route: true` so a self-registered schema is required to fill it.
-      route: Keyword.get(opts, :route, not is_nil(schema))
+      route: Keyword.get(opts, :route, not is_nil(schema)),
+      # Declares that the key is *always* derived: generate! by key requires
+      # from:. A requirement, not a permission - an undeclared key may still be
+      # minted deterministically.
+      deterministic: Keyword.get(opts, :deterministic, false),
+      # Opaque app metadata with no library behavior - somewhere to record "this
+      # key is deliberately still on an older scheme, retrofit deferred" so the
+      # backlog is visible in the registry rather than buried in a moduledoc.
+      legacy: Keyword.get(opts, :legacy)
     }
+  end
+
+  @defid_opts [
+    :prefix,
+    :size,
+    :schema,
+    :category,
+    :validate,
+    :allow_uuid,
+    :route,
+    :deterministic,
+    :legacy
+  ]
+
+  # A compile-time registry whose selling point is catching mistakes at compile
+  # time should not silently ignore a typo'd option.
+  defp validate_opt_names!(key, opts, module) do
+    case Keyword.keys(opts) -- @defid_opts do
+      [] ->
+        :ok
+
+      unknown ->
+        raise ArgumentError,
+              "unrecognized defid option(s) for #{inspect(key)} in #{inspect(module)}: " <>
+                "#{inspect(unknown)}. Recognized options: #{inspect(@defid_opts)}"
+    end
   end
 
   defp validate_delimiter!(module, delimiter) do

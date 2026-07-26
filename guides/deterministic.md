@@ -1,7 +1,7 @@
 # Deterministic IDs
 
 Standard UXIDs are random: calling `generate!/1` twice with the same options
-gives two different IDs. Deterministic mode is the opposite — **the same input
+gives two different IDs. Deterministic mode is the opposite - **the same input
 string always maps to the same ID**, forever, across processes and machines.
 This is what a name-based UUID (UUIDv5) gives you, adapted to the UXID format.
 
@@ -27,15 +27,36 @@ The ID is a truncated **SHA-256** of the input. `from:` must be a string; pass a
 non-binary and it raises. For a composite key, stringify it yourself first
 (`"#{tenant}:#{email}"`) so you control the exact bytes that get hashed.
 
+## With a prefix registry
+
+If your app has a [prefix registry](registry.md), mint by key rather than
+restating the prefix and size at the call site:
+
+```elixir
+MyApp.IDs.generate!(:export, from: phone)
+```
+
+That is the preferred call shape for registry users: the prefix and size still
+come from the registry (and cannot be overridden), while `from:` passes through.
+Better still, declare the key as always-derived so a random mint becomes
+impossible:
+
+```elixir
+defid :export, prefix: "exp", deterministic: true
+```
+
+See [Deterministic keys](registry.md#deterministic-keys) for the declaration, the
+`autogenerate` caveat, and how the flag travels in the JSON manifest.
+
 ## Prefix is the namespace
 
 The prefix is folded into the hash as the namespace, so the same string under two
-prefixes produces two unrelated bodies — `usr` + `"alice@example.com"` and `org`
+prefixes produces two unrelated bodies - `usr` + `"alice@example.com"` and `org`
 + `"alice@example.com"` never collide:
 
 ```elixir
-UXID.generate!(prefix: "usr", from: "alice@example.com")  # "usr_zcvt7epac…"
-UXID.generate!(prefix: "org", from: "alice@example.com")  # "org_zes4c99fn…"  (unrelated)
+UXID.generate!(prefix: "usr", from: "alice@example.com")  # "usr_zcvt7epac..."
+UXID.generate!(prefix: "org", from: "alice@example.com")  # "org_zes4c99fn..."  (unrelated)
 ```
 
 Most callers pass just `prefix` + `from` and get correct scoping with zero extra
@@ -44,13 +65,13 @@ prefix at all hashes into the global scope.)
 
 ## The `z` marker and sort order
 
-A deterministic body always starts with `z` (or `Z` in upper case) — Crockford
+A deterministic body always starts with `z` (or `Z` in upper case) - Crockford
 value 31, the maximum symbol. It does two jobs:
 
-1. **Self-identifying** — a human or the decoder can see at a glance that the ID
+1. **Self-identifying** - a human or the decoder can see at a glance that the ID
    is hash-derived, not time-derived. `UXID.deterministic?/1` reports it, and
    `decode/1` returns `deterministic: true` with `time: nil`.
-2. **Sorts last** — because `z` is the highest value, every deterministic ID
+2. **Sorts last** - because `z` is the highest value, every deterministic ID
    sorts *after* every time-based ID. They cluster at the end of an index instead
    of interleaving with (and polluting) the K-sortable time range. Among
    themselves they sort in no meaningful order.
@@ -63,7 +84,7 @@ to ~mid-2038 (standard 48-bit timestamps are unaffected). See the
 ## Size and length
 
 Deterministic bodies reuse the standard (non-compact) lengths, spending the whole
-body — minus the one-character marker — on hash bits:
+body - minus the one-character marker - on hash bits:
 
 | Size          | Aliases      | Body length | Hash bits |
 |---------------|--------------|-------------|-----------|
@@ -77,17 +98,17 @@ With no `:size`, generation defaults to `:xl` (125 hash bits). A deterministic I
 carries *more* distinguishing bits than the random UXID of the same size, since it
 does not spend characters on a timestamp. Changing `size` changes the ID: the
 same input at two sizes yields unrelated bodies, not one a truncated prefix of the
-other. Case is a display concern applied at encode time — upper and lower are the
+other. Case is a display concern applied at encode time - upper and lower are the
 same ID, exactly as for random UXIDs.
 
 ## Properties, honestly
 
-- **Deterministic & idempotent** — same `{namespace, name, size, case}` → same ID,
+- **Deterministic & idempotent** - same `{namespace, name, size, case}` → same ID,
   everywhere, forever.
-- **Not time-ordered** — hash order is effectively random-but-stable. These sort
+- **Not time-ordered** - hash order is effectively random-but-stable. These sort
   after time IDs and among themselves in no meaningful order, so do not rely on
   them for K-sortability.
-- **Not a secret** — a deterministic ID is a hash of a *known* input, so it is
+- **Not a secret** - a deterministic ID is a hash of a *known* input, so it is
   exactly as guessable as that input. Anyone who knows the namespace + name can
   recompute the ID. Do **not** derive an ID from a low-entropy secret and treat
   the ID as unguessable. (This is the same caveat RFC 4122 gives for name-based
@@ -100,7 +121,7 @@ same ID, exactly as for random UXIDs.
 
 ## With Ecto
 
-Ecto `autogenerate` is intentionally **not** wired for `from:` — there is no
+Ecto `autogenerate` is intentionally **not** wired for `from:` - there is no
 per-row input available at autogenerate time. Mint the ID explicitly in
 application code (typically a changeset) and store it as an ordinary string:
 
@@ -119,6 +140,10 @@ end
 defp put_deterministic_id(changeset), do: changeset
 ```
 
-The field itself is a normal `UXID` (or `:string`) column — casting and querying
+The field itself is a normal `UXID` (or `:string`) column - casting and querying
 are unchanged; you are just supplying the value instead of letting the datastore
 or `autogenerate` mint a random one.
+
+Note the corollary for registry users: a `deterministic: true` key must **not** be
+wired with `autogenerate: true`, because the declaration cannot reach Ecto's
+autogenerate path and a random ID would be minted there silently.

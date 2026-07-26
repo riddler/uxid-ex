@@ -2,6 +2,8 @@
 
 ## Upcoming
 
+## 2.8.0 / 2026-07-26
+
 * Makes **deterministic minting reachable through `UXID.Registry`** - 2.7.0 shipped `from:` but the registry's generated `generate!/1` was arity-1 and dropped caller options, so a registry user had to drop to the plain API and hand-assemble prefix/size:
   - Generated `generate!/2` and `generate/2` merge caller options over the registry's, so `MyApp.IDs.generate!(:export, from: natural_key)` mints deterministically by key; existing arity-1 calls are unchanged
   - `:prefix` and `:size` belong to the key and raise if overridden - the registry's contract is that a key determines its shape; the intended override surface is `:from`, `:case`, `:monotonic`, `:compact_time`, `:rand_size`

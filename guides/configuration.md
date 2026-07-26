@@ -28,7 +28,7 @@ UXID.generate!(case: :lower)   # => "01emdgjf0dqxqj8fm78xe97y3h"  (per-call over
 ## `:delimiter`
 
 The character placed between the prefix and the body. It must be a character that
-cannot appear in a Crockford Base32 body — `"_"` (the default) or `"-"` — so that
+cannot appear in a Crockford Base32 body - `"_"` (the default) or `"-"` - so that
 prefix parsing stays unambiguous. An underscore keeps double-click-to-select
 working. Override per call with `delimiter:`; a `UXID.Registry` sets it per
 registry with `delimiter:`.
@@ -65,7 +65,7 @@ UXID.generate!(size: :large, compact_time: true)  # opt in for a size the policy
 ## `:monotonic`
 
 Global monotonic policy. Accepts `true` (all sizes), `false`, or a list of sizes
-(alias-aware — `[:small]` matches both `:small` and `:s`). Override per call or
+(alias-aware - `[:small]` matches both `:small` and `:s`). Override per call or
 per field with `monotonic:`. See the [Monotonic IDs guide](monotonic.md) for the
 guarantee and its security tradeoff.
 

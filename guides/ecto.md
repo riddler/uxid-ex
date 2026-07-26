@@ -1,13 +1,13 @@
 # Ecto Integration
 
 UXID implements `Ecto.ParameterizedType`, so a UXID column is just a `:string`
-(text) column with `UXID` as the field type. Ecto is an optional dependency —
+(text) column with `UXID` as the field type. Ecto is an optional dependency -
 UXID only uses it when your app already depends on it.
 
 ## Fields and primary keys
 
 Set the field type to `UXID` and pass the same options you'd give
-`UXID.generate!/1` (`:prefix`, `:size`, `:compact_time`, `:monotonic`, …).
+`UXID.generate!/1` (`:prefix`, `:size`, `:compact_time`, `:monotonic`, ...).
 `autogenerate: true` mints a value on insert when the field is blank.
 
 ```elixir
@@ -49,7 +49,7 @@ still holds a mix of legacy identifiers. Opt a field into strict validation with
 - a structurally valid UXID carrying the field's configured `:prefix`, or
 - a legacy bare UUID string (canonical 36-character form).
 
-Anything else — an empty string, the wrong prefix, non–Base32 characters — casts
+Anything else - an empty string, the wrong prefix, non-Base32 characters - casts
 to `:error`.
 
 ```elixir
@@ -82,6 +82,6 @@ UXID.valid?("not-a-uxid")                                     # => false
 ```
 
 It validates structure, not authenticity, and deliberately does **not** accept
-bare UUIDs — that coexistence lives only in `cast/2`. To centralize the
+bare UUIDs - that coexistence lives only in `cast/2`. To centralize the
 `prefix`/`size`/`validate`/`allow_uuid` options for a field so they live in one
 place, see the [Prefix Registry guide](registry.md) and its `field_opts/1` hook.

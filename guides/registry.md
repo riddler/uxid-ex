@@ -1,6 +1,6 @@
 # Prefix Registry
 
-A prefix only pays off — "the ID names its resource on sight" — when it is
+A prefix only pays off - "the ID names its resource on sight" - when it is
 globally unique and well-formed across your whole app. `UXID.Registry` is an
 opt-in, compile-time DSL that makes those guarantees the compiler's job instead
 of a hand-rolled CI test, and turns the same declarations into a runtime routing
@@ -27,55 +27,121 @@ end
 
 **Compile-time guarantees.** Every prefix is checked against `:prefix_format`
 (overridable; the default permits an internal underscore for compound prefixes
-like `in_ref`), and all prefixes — active *and* `retired` — are checked for
+like `in_ref`), and all prefixes - active *and* `retired` - are checked for
 uniqueness. A malformed or duplicate prefix is a compile error, so the governance
 every prefixed-ID scheme needs ships in the library.
 
 Keep to **one registry module per app**: compile-time uniqueness only holds
 within a single module, since the library never sees two registries together.
 
-## By key — minting and schema configuration
+## By key - minting and schema configuration
 
 ```elixir
-MyApp.IDs.generate!(:org)   # => "org_01h…"
+MyApp.IDs.generate!(:org)   # => "org_01h..."
 MyApp.IDs.prefix(:org)      # => "org"
 MyApp.IDs.size(:org)        # => :medium
 MyApp.IDs.schema(:org)      # => MyApp.Org
 MyApp.IDs.all()             # => [%{key: :org, prefix: "org", schema: MyApp.Org, ...}, ...]
 ```
 
-`field_opts/1` is the single-source-of-truth hook — a schema spreads it instead
+`field_opts/1` is the single-source-of-truth hook - a schema spreads it instead
 of restating prefix/size/validate anywhere:
 
 ```elixir
 @primary_key {:id, UXID, [autogenerate: true] ++ MyApp.IDs.field_opts(:org)}
 ```
 
-## By ID string — the runtime routing table
+`generate!/2` merges caller options over the registry's, so a call site can pass
+anything the key does not own:
+
+```elixir
+MyApp.IDs.generate!(:share, monotonic: false)   # one-off override
+MyApp.IDs.generate!(:export, from: natural_key) # deterministic - see below
+```
+
+`:prefix` and `:size` belong to the key and raise if passed - the registry's whole
+contract is that a key determines its shape. Drop to `UXID.generate!/1` if you
+genuinely need a one-off shape.
+
+## Deterministic keys
+
+Some entities are derived rather than created: their identity is a function of a
+natural key, so the same input must always produce the same ID (see the
+[Deterministic IDs guide](deterministic.md)). Mint those by key with `from:`:
+
+```elixir
+MyApp.IDs.generate!(:export, from: phone)
+# => "exp_z9r3k..."   (stable for this input, forever)
+```
+
+Passthrough alone still permits the failure mode where one call site derives and
+another mints randomly, silently producing two ID shapes for one entity. Declare
+the key so that becomes impossible:
+
+```elixir
+defid :export, prefix: "exp", deterministic: true, route: true
+```
+
+```elixir
+MyApp.IDs.generate!(:export)
+# ** (ArgumentError) key :export is declared deterministic: true and must be
+#    minted with from: - e.g. generate!(:export, from: natural_key)
+```
+
+The flag is a *requirement*, not a permission: an undeclared key can still be
+minted with `from:`, so an incidental deterministic ID does not force a registry
+change.
+
+**Do not wire a deterministic key with `autogenerate: true`.** Ecto has no
+per-row input at autogenerate time, so `UXID` mints a random ID there and the
+declaration cannot stop it. Mint in a changeset instead:
+
+```elixir
+# NOT this, for a deterministic key:
+@primary_key {:id, UXID, [autogenerate: true] ++ MyApp.IDs.field_opts(:export)}
+
+# but this:
+@primary_key {:id, UXID, MyApp.IDs.field_opts(:export)}
+
+def changeset(export, attrs) do
+  export
+  |> cast(attrs, [:phone])
+  |> put_change(:id, MyApp.IDs.generate!(:export, from: attrs.phone))
+end
+```
+
+The flag is surfaced on `all/0`, so an app can enforce that rule over its own
+registry in a conformance test.
+
+One sizing note: a deterministic body spends its whole width on hash bits, and a
+key with no `:size` (and no registry `:default_size`) falls through to the
+**`:xlarge`** width - set `:size` explicitly if you want narrower derived IDs.
+
+## By ID string - the runtime routing table
 
 This is the "which resource is this?" map that powers authorization scans, admin
 tooling, and global-ID resolution:
 
 ```elixir
-MyApp.IDs.known?("org_01h…")      # => true   (cheap prefix-only membership check)
-MyApp.IDs.key_for("org_01h…")     # => :org
-MyApp.IDs.schema_for("org_01h…")  # => MyApp.Org
-MyApp.IDs.resolve("org_01h…")     # => %{key: :org, schema: MyApp.Org, category: :account, ...}
+MyApp.IDs.known?("org_01h...")      # => true   (cheap prefix-only membership check)
+MyApp.IDs.key_for("org_01h...")     # => :org
+MyApp.IDs.schema_for("org_01h...")  # => MyApp.Org
+MyApp.IDs.resolve("org_01h...")     # => %{key: :org, schema: MyApp.Org, category: :account, ...}
 ```
 
 Lookups split an ID on the **last** delimiter, which is unambiguous without any
 registry lookup because a UXID body is Crockford Base32 and never contains the
-delimiter — so `in_ref_01h…` recovers the `in_ref` prefix cleanly. For that
+delimiter - so `in_ref_01h...` recovers the `in_ref` prefix cleanly. For that
 reason the `:delimiter` must be a character that cannot appear in a Base32 body
-(`"_"` — the default — or `"-"`); an underscore is preferred for compound
+(`"_"` - the default - or `"-"`); an underscore is preferred for compound
 prefixes since it does not break double-click-to-select-the-whole-id.
 
 ## Routing in a layered or umbrella app
 
 The `schema:` literal above points the registry **up** at a schema module. In a
 flat app that is fine. But in a layered app the registry usually wants to live at
-the *base* layer — so every layer can depend down on it to mint IDs and read
-`field_opts/1` — while the schemas it routes to live *above* it. Naming those
+the *base* layer - so every layer can depend down on it to mint IDs and read
+`field_opts/1` - while the schemas it routes to live *above* it. Naming those
 schemas from the base layer inverts the dependency direction (and trips tools
 like `Boundary`).
 
@@ -84,13 +150,13 @@ itself under its key with `UXID.Registered`. The reference then points *down*
 (schema names a registry key), never up:
 
 ```elixir
-# base layer — governance only, no schema: literal
+# base layer - governance only, no schema: literal
 defmodule MyApp.IDs do
   use UXID.Registry
   defid :contact, prefix: "contact", route: true   # filled at boot by self-registration
 end
 
-# upper layer — the schema marks itself
+# upper layer - the schema marks itself
 defmodule MyApp.CRM.Contact do
   use Ecto.Schema
   use UXID.Registered, key: :contact
@@ -104,10 +170,10 @@ not required).
 
 ### Building and verifying the table at boot
 
-At boot, `verify!/1` scans the given OTP apps for the marker (by reflection — no
+At boot, `verify!/1` scans the given OTP apps for the marker (by reflection - no
 base-layer reference to an upper-layer module), assembles the prefix → schema
 table into `:persistent_term`, and validates it. Wire it into your top app's
-`start/2` so **every** boot — prod, dev, and CI's `mix test` — re-verifies:
+`start/2` so **every** boot - prod, dev, and CI's `mix test` - re-verifies:
 
 ```elixir
 def start(_type, _args) do
@@ -123,12 +189,12 @@ end
 - a `route: true` key resolves to no schema.
 
 After it runs, `schema_for/1` resolves layered schemas from the table (flat-app
-`schema:` literals resolve with no build at all — `schema_for/1` checks the
+`schema:` literals resolve with no build at all - `schema_for/1` checks the
 literal first, then the table).
 
 ## Verifying uniqueness & correctness in CI
 
-You don't need a bespoke CI job — CI already boots your app when it runs
+You don't need a bespoke CI job - CI already boots your app when it runs
 `mix test`, and `verify!/1` in `start/2` runs on that boot. Between the compiler
 and `verify!/1` you get:
 
@@ -139,7 +205,7 @@ and `verify!/1` you get:
 
 The one thing the library can't know is "every schema actually draws its id from
 the registry." That stays an app-side test. With `prefixes/0` and two small
-reflection helpers it's a handful of lines — discover every UXID-keyed schema in
+reflection helpers it's a handful of lines - discover every UXID-keyed schema in
 your app and assert each prefix is registered:
 
 ```elixir
@@ -177,17 +243,18 @@ end
 
 ## Sharing the registry across sources (JSON manifest)
 
-UXIDs are source-agnostic — you can mint them in Postgres with `INSERT ... SELECT`
+UXIDs are source-agnostic - you can mint them in Postgres with `INSERT ... SELECT`
 or on a mobile/JS client that generates an ID offline before upload. To keep the
 Elixir registry the single source of truth in those places too, export a JSON
 manifest and let the other runtime read it:
 
 ```elixir
 MyApp.IDs.manifest()
-# => [%{"key" => "org", "prefix" => "org", "size" => "medium", "category" => "account"}, ...]
+# => [%{"key" => "org", "prefix" => "org", "size" => "medium",
+#       "category" => "account", "deterministic" => false}, ...]
 
 MyApp.IDs.manifest_json()
-# => ~s([{"key":"org","prefix":"org","size":"medium","category":"account"}, ...])
+# => ~s([{"key":"org","prefix":"org","size":"medium","category":"account","deterministic":false}, ...])
 ```
 
 `manifest/0` returns plain JSON-safe data (string keys, scalar values, `nil` for
@@ -208,8 +275,15 @@ end
 ```
 
 The manifest carries `prefix`, `size` (which fixes the random length), `category`,
-and `key`; combine each `prefix` with the registry's delimiter and a Base32 body
-to assemble an ID anywhere.
+`key`, and `deterministic`; combine each `prefix` with the registry's delimiter and
+a Base32 body to assemble an ID anywhere.
+
+`deterministic` tells another generator *which scheme* a key uses, not how to
+implement it - a generator that ignored the flag would mint a random ID for a
+derived key, which is exactly the cross-source drift the manifest exists to
+prevent. Reproducing the scheme itself (SHA-256 over prefix + input, the `z`
+marker, the hash-char table) is on the implementer; see the
+[Deterministic IDs guide](deterministic.md).
 
 <!-- LINKS -->
 [uxid_talk_url]: https://www.youtube.com/watch?v=YIIJClhjxOA

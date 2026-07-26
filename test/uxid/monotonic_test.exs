@@ -1,5 +1,5 @@
 defmodule UXID.MonotonicTest do
-  # async: false — the precedence tests mutate global config (Application.put_env
+  # async: false - the precedence tests mutate global config (Application.put_env
   # for :monotonic). ExUnit never runs a sync module concurrently with async ones,
   # so this keeps that global from bleeding into other tests mid-run.
   use ExUnit.Case, async: false
@@ -29,7 +29,7 @@ defmodule UXID.MonotonicTest do
 
     test "a same-ms burst is strictly increasing and unique" do
       # A high random seed can overflow the field within the burst, which spins
-      # the time forward 1ms and reseeds — those draws are a new run, not the same
+      # the time forward 1ms and reseeds - those draws are a new run, not the same
       # ms. Group by emitted time and assert the per-ms guarantee on each run.
       draws =
         for _ <- 1..100 do
@@ -113,7 +113,7 @@ defmodule UXID.MonotonicTest do
 
       assert :binary.decode_unsigned(a2) > :binary.decode_unsigned(a)
       # b lives under a separate key ({prefix, rand_size}), so a's advances leave
-      # it untouched — a fresh, correctly sized seed.
+      # it untouched - a fresh, correctly sized seed.
       assert byte_size(b) == 2
     end
 
@@ -165,7 +165,7 @@ defmodule UXID.MonotonicTest do
         end
 
       # The child starts its own sequence (a fresh seed), not a continuation of
-      # the parent's — so it does not land in the parent's forward step window.
+      # the parent's - so it does not land in the parent's forward step window.
       u1 = :binary.decode_unsigned(r1)
       refute :binary.decode_unsigned(child) in (u1 + 1)..(u1 + (1 <<< 16))
     end
@@ -181,14 +181,14 @@ defmodule UXID.MonotonicTest do
 
   # The emitted `{time, rand_int}` pair. The time matters because a same-ms burst
   # that overflows the field spins the time forward 1ms and reseeds (see
-  # UXID.Monotonic) — those draws belong to a new millisecond, not the same run.
+  # UXID.Monotonic) - those draws belong to a new millisecond, not the same run.
   defp rand_pair(opts) do
     {:ok, codec} = UXID.new(opts)
     {codec.time, :binary.decode_unsigned(codec.rand)}
   end
 
   # A first draw plus a second consecutive draw that stayed in the same emitted
-  # millisecond — a pure forward step, no overflow reseed. `t2` is the wall-clock
+  # millisecond - a pure forward step, no overflow reseed. `t2` is the wall-clock
   # handed to the second draw; pass `t2 < t1` to model a backward clock. A high
   # random seed occasionally overflows the field on the step, which the module
   # handles by spinning the time forward and reseeding; retry past that rare case
@@ -206,7 +206,7 @@ defmodule UXID.MonotonicTest do
   # Decides whether `opts` yields a monotonic sequence. A monotonic burst is
   # strictly increasing and unique *within a millisecond*; a random one shares one
   # ms and is sorted only by chance (~1/n!). A 20-draw burst makes false positives
-  # ~1/20! — effectively zero. We group draws by their emitted ms and check each
+  # ~1/20! - effectively zero. We group draws by their emitted ms and check each
   # run on its own: a high random seed can overflow the field mid-burst, which
   # starts a fresh run in the next ms, so comparing the raw ints across that
   # boundary would spuriously fail.
@@ -253,7 +253,7 @@ defmodule UXID.MonotonicTest do
       {:ok, c2} = UXID.new(size: :small, time: 1_700_000_199_995, monotonic: true)
 
       # The backward clock never emits a smaller time: normally it keeps c1's time,
-      # and in the rare case the field overflows on the step it spins 1ms forward —
+      # and in the rare case the field overflows on the step it spins 1ms forward -
       # never backward. (Exact keep-the-last-time is covered at the Monotonic unit
       # level.) The encoded ID still strictly increases either way.
       assert c2.time >= c1.time

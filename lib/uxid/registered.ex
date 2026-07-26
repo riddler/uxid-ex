@@ -2,7 +2,7 @@ defmodule UXID.Registered do
   @moduledoc """
   Marks a module (typically an Ecto schema) as belonging to a `UXID.Registry`
   key, so the registry can assemble its runtime prefix → schema routing table by
-  reflection at boot — *without* the base-layer registry ever naming the
+  reflection at boot - *without* the base-layer registry ever naming the
   upper-layer schema module in code.
 
       defmodule MyApp.CRM.Contact do
@@ -12,8 +12,8 @@ defmodule UXID.Registered do
       end
 
   This defines `__uxid_key__/0`, the marker that `MyApp.IDs.build_routes!/1` /
-  `verify!/1` collect. Every reference points **down** — the schema names a
-  registry *key*, never the reverse — so a layered app keeps the correct
+  `verify!/1` collect. Every reference points **down** - the schema names a
+  registry *key*, never the reverse - so a layered app keeps the correct
   dependency direction: the registry can live at the base layer while the
   schemas it routes to live above it. See `UXID.Registry` for the routing and
   boot-verification story.

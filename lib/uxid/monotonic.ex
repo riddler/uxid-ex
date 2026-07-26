@@ -2,24 +2,24 @@ defmodule UXID.Monotonic do
   @moduledoc """
   Process-local monotonic counter backing UXID's `monotonic:` mode.
 
-  All state lives in the process dictionary — no GenServer, no ETS, no shared
-  state — so callers stay `async: true` safe. Each BEAM process maintains its
+  All state lives in the process dictionary - no GenServer, no ETS, no shared
+  state - so callers stay `async: true` safe. Each BEAM process maintains its
   own independent sequence per `{prefix, rand_size}`.
 
   The random field is treated as one big-endian unsigned integer. The first ID
   in a given millisecond seeds it with full CSPRNG bytes; each subsequent ID in
   the same millisecond advances it by a random positive step drawn from the
   CSPRNG. Because the step is always `>= 1` the sequence is strictly increasing,
-  so IDs stay unique and — since the encoding is big-endian and the Crockford
-  alphabet is ASCII-monotonic — integer order equals encoded lexical order,
+  so IDs stay unique and - since the encoding is big-endian and the Crockford
+  alphabet is ASCII-monotonic - integer order equals encoded lexical order,
   preserving K-sortability within the millisecond.
 
   The step is uniform over `[1, 2^(bits/2)]` where `bits` is the field width, so
   the next value is spread across a window of size `~2^(bits/2)` instead of being
   exactly `+1`. This is a *mitigation, not cryptographic unpredictability*: it
-  removes trivial `…0004` → `…0005` enumeration and raises single-shot guess cost
+  removes trivial `...0004` → `...0005` enumeration and raises single-shot guess cost
   from certainty to `~1/2^(bits/2)`, but consecutive values still lie in a bounded
-  window ahead. Low-entropy sizes (`:small` = 16 bits) remain low-entropy — don't
+  window ahead. Low-entropy sizes (`:small` = 16 bits) remain low-entropy - don't
   use small/medium monotonic IDs as externally-enumerable, security-sensitive
   identifiers.
   """

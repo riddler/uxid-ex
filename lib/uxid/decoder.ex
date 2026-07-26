@@ -110,7 +110,7 @@ defmodule UXID.Decoder do
 
   # Decode UXID and extract timestamp
   @spec decode_time(Codec.t()) :: Codec.t()
-  # Deterministic (name-based) IDs carry a hash, not a timestamp — do not decode
+  # Deterministic (name-based) IDs carry a hash, not a timestamp - do not decode
   # the body as time.
   def decode_time(%Codec{deterministic: true} = struct), do: %{struct | time: nil}
 

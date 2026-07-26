@@ -1,5 +1,5 @@
 defmodule UXID.DecoderTest do
-  # async: false — a test here mutates global config (Application.put_env). ExUnit
+  # async: false - a test here mutates global config (Application.put_env). ExUnit
   # never runs a sync module concurrently with async ones, so this keeps that
   # global from bleeding into other tests mid-run.
   use ExUnit.Case, async: false

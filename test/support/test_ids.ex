@@ -27,7 +27,7 @@ defmodule UXID.TestSupport.IDs do
 end
 
 # A schema that self-registers under a routed registry key via the marker
-# mixin — the reference points down (schema names a key), never up.
+# mixin - the reference points down (schema names a key), never up.
 defmodule UXID.TestSupport.Widget do
   @moduledoc false
   use UXID.Registered, key: :widget
@@ -42,4 +42,16 @@ defmodule UXID.TestSupport.RoutedIDs do
 
   defid :widget, prefix: "wid", route: true
   defid :gadget, prefix: "gad", route: false
+end
+
+# A registry exercising the derived-key options: `:export` is always minted from
+# a natural key, `:enrichment` records a deferred migration off an older scheme,
+# and `:note` is an ordinary key for the contrast cases.
+defmodule UXID.TestSupport.DeterministicIDs do
+  @moduledoc false
+  use UXID.Registry, default_size: :medium
+
+  defid :export, prefix: "exp", deterministic: true
+  defid :enrichment, prefix: "enr", legacy: :uuid5_deferred
+  defid :note, prefix: "note"
 end

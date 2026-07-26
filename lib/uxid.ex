@@ -13,7 +13,7 @@ defmodule UXID do
   * Do not require any coordination (human or automated) at startup, or generation
   * Are very unlikely to collide (more likely with less randomness)
   * Are easily and accurately transmitted to another human using a telephone
-  * Can optionally be deterministic (name-based) — the same input always maps to
+  * Can optionally be deterministic (name-based) - the same input always maps to
     the same ID
 
   Many of the concepts of Stripe IDs have been used in this library.
@@ -24,7 +24,7 @@ defmodule UXID do
   deterministic (name-based) ID: the same input string always maps to the same
   ID (UUIDv5-style), with the prefix acting as the namespace. Deterministic IDs
   carry a leading `z`/`Z` marker and sort after time-based IDs. They are a hash
-  of a *known* input, so they are not unguessable — see `generate/1` and the
+  of a *known* input, so they are not unguessable - see `generate/1` and the
   Deterministic IDs guide for the full picture.
   """
 
@@ -73,11 +73,11 @@ defmodule UXID do
 
   Deterministic IDs are marked with a leading `z`/`Z` and sort *after* every
   time-based ID; they are not K-sortable among themselves. They are a hash of a
-  *known* input, so they are exactly as guessable as that input — do not derive
+  *known* input, so they are exactly as guessable as that input - do not derive
   an ID from a low-entropy secret and treat the ID as unguessable.
 
       {:ok, id} = UXID.generate(prefix: "usr", from: "alice@example.com")
-      # {:ok, "usr_z…"} — identical for this input on every call
+      # {:ok, "usr_z..."} - identical for this input on every call
 
   """
   def generate(opts \\ []) do
@@ -95,7 +95,7 @@ defmodule UXID do
   for the full deterministic-mode notes.
 
       UXID.generate!(prefix: "usr", from: "alice@example.com")
-      # => "usr_z…" (stable for this input, forever)
+      # => "usr_z..." (stable for this input, forever)
 
   """
   def generate!(opts \\ []) do
@@ -142,7 +142,7 @@ defmodule UXID do
     do:
       raise(
         ArgumentError,
-        "from: must be a string, got: #{inspect(other)} — stringify your key before passing it"
+        "from: must be a string, got: #{inspect(other)} - stringify your key before passing it"
       )
 
   def encode_case(), do: Application.get_env(:uxid, :case, :lower)
@@ -180,8 +180,8 @@ defmodule UXID do
   ID in a millisecond is seeded from the CSPRNG and each subsequent same-ms ID
   advances it by a random positive step (per process, per prefix). This
   guarantees uniqueness and K-sortability within a burst while keeping
-  consecutive IDs within a bounded window ahead — a mitigation, not cryptographic
-  unpredictability — which is why it is off by default and opt-in per resource.
+  consecutive IDs within a bounded window ahead - a mitigation, not cryptographic
+  unpredictability - which is why it is off by default and opt-in per resource.
 
   Accepts `true`/`false`, or a list of sizes (alias-aware, e.g. `[:small]`
   matches both `:small` and `:s`). Overridable per-call/per-field with the
@@ -248,7 +248,7 @@ defmodule UXID do
 
   Deterministic IDs carry a leading `z`/`Z` scheme marker (Crockford value 31)
   instead of an encoded timestamp, so this only inspects the first body
-  character — it does not otherwise validate structure (pair it with `valid?/2`
+  character - it does not otherwise validate structure (pair it with `valid?/2`
   if you need both). Time-based IDs start with a lower value and return `false`.
 
   ## Options
@@ -299,7 +299,7 @@ defmodule UXID do
   end
 
   # Only ever called on a binary (cast_strict/2 guards is_binary before calling),
-  # so no non-binary clause is needed — the guard documents that contract.
+  # so no non-binary clause is needed - the guard documents that contract.
   defp uuid_string?(term) when is_binary(term), do: Regex.match?(@uuid_format, term)
 
   # Define additional functions for custom Ecto type if Ecto is loaded
@@ -314,7 +314,7 @@ defmodule UXID do
 
         field :id, UXID, autogenerate: true, prefix: "evt", size: :small, monotonic: true
 
-    Deterministic (`from:`) IDs are intentionally **not** wired here — there is no
+    Deterministic (`from:`) IDs are intentionally **not** wired here - there is no
     per-row input available at autogenerate time. Mint them explicitly in
     application code (e.g. in a changeset via `generate!/1`) and store/cast the
     result as an ordinary string.

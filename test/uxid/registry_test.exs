@@ -3,7 +3,7 @@ defmodule UXID.RegistryTest do
 
   doctest UXID.Registry
 
-  alias UXID.TestSupport.{Contact, IDs, Org}
+  alias UXID.TestSupport.{Contact, DeterministicIDs, IDs, Org}
 
   describe "by-key API" do
     test "prefix/1, size/1, schema/1, category/1" do
@@ -71,7 +71,14 @@ defmodule UXID.RegistryTest do
 
     test "manifest/0 renders unset size/category as nil" do
       lead = Enum.find(IDs.manifest(), &(&1["key"] == "lead"))
-      assert lead == %{"key" => "lead", "prefix" => "lead", "size" => "medium", "category" => nil}
+
+      assert lead == %{
+               "key" => "lead",
+               "prefix" => "lead",
+               "size" => "medium",
+               "category" => nil,
+               "deterministic" => false
+             }
     end
 
     test "manifest_json/0 emits deterministic JSON with nulls" do
@@ -81,9 +88,22 @@ defmodule UXID.RegistryTest do
       assert String.ends_with?(json, "]")
 
       assert json =~
-               ~s({"key":"org","prefix":"org","size":"medium","category":"account"})
+               ~s({"key":"org","prefix":"org","size":"medium","category":"account","deterministic":false})
 
-      assert json =~ ~s({"key":"lead","prefix":"lead","size":"medium","category":null})
+      assert json =~
+               ~s({"key":"lead","prefix":"lead","size":"medium","category":null,"deterministic":false})
+    end
+
+    test "manifest/0 carries the deterministic flag as a real boolean" do
+      export = Enum.find(DeterministicIDs.manifest(), &(&1["key"] == "export"))
+      assert export["deterministic"] == true
+    end
+
+    test "manifest_json/0 emits deterministic as an unquoted JSON bool" do
+      json = DeterministicIDs.manifest_json()
+
+      assert json =~ ~s("deterministic":true)
+      refute json =~ ~s("deterministic":"true")
     end
   end
 
@@ -181,6 +201,111 @@ defmodule UXID.RegistryTest do
         end
         """)
       end
+    end
+
+    test "rejects an unrecognized defid option" do
+      assert_raise ArgumentError, ~r/unrecognized defid option\(s\) for :a.*\[:validat\]/s, fn ->
+        Code.compile_string("""
+        defmodule Sample.TypoOpt do
+          use UXID.Registry
+          defid :a, prefix: "aa", validat: false
+        end
+        """)
+      end
+    end
+  end
+
+  describe "generate!/2 opts passthrough" do
+    test "merges caller opts over the registry's" do
+      assert {:ok, "org_" <> body} = IDs.generate(:org, case: :upper)
+      assert String.upcase(body) == body
+    end
+
+    test "arity-1 calls are unchanged" do
+      assert String.starts_with?(IDs.generate!(:org), "org_")
+    end
+
+    test "from: mints a deterministic id by key" do
+      id = IDs.generate!(:org, from: "+15555550123")
+
+      assert id == IDs.generate!(:org, from: "+15555550123")
+      assert UXID.deterministic?(id)
+      assert String.starts_with?(id, "org_")
+    end
+
+    test "a deterministic by-key id carries the registry's prefix and size" do
+      id = IDs.generate!(:in_ref, from: "abc")
+
+      assert {:ok, decoded} = UXID.decode(id)
+      assert decoded.prefix == "in_ref"
+      assert decoded.size == :small
+    end
+
+    test "rejects an override of prefix or size" do
+      for opt <- [[prefix: "nope"], [size: :large]] do
+        assert_raise ArgumentError, ~r/cannot be overridden when generating by key/, fn ->
+          IDs.generate!(:org, opt)
+        end
+      end
+    end
+
+    test "the pinned-opt check also guards generate/2" do
+      assert_raise ArgumentError, ~r/cannot be overridden/, fn ->
+        IDs.generate(:org, prefix: "nope")
+      end
+    end
+  end
+
+  describe "deterministic: true keys" do
+    test "raise when minted without from:" do
+      assert_raise ArgumentError, ~r/:export is declared deterministic: true/, fn ->
+        DeterministicIDs.generate!(:export)
+      end
+
+      assert_raise ArgumentError, ~r/must be minted with from:/, fn ->
+        DeterministicIDs.generate(:export)
+      end
+    end
+
+    test "mint with from:" do
+      id = DeterministicIDs.generate!(:export, from: "natural-key")
+
+      assert id == DeterministicIDs.generate!(:export, from: "natural-key")
+      assert UXID.deterministic?(id)
+      assert String.starts_with?(id, "exp_")
+    end
+
+    test "an explicit nil from: is not enough" do
+      assert_raise ArgumentError, ~r/must be minted with from:/, fn ->
+        DeterministicIDs.generate!(:export, from: nil)
+      end
+    end
+
+    test "the flag is a requirement, not a permission" do
+      # An undeclared key may still be minted deterministically...
+      assert UXID.deterministic?(DeterministicIDs.generate!(:note, from: "x"))
+      # ...and is unaffected when minted normally.
+      refute UXID.deterministic?(DeterministicIDs.generate!(:note))
+    end
+
+    test "the flag is surfaced on all/0 for app-side conformance tests" do
+      by_key = Map.new(DeterministicIDs.all(), &{&1.key, &1})
+
+      assert by_key[:export].deterministic
+      refute by_key[:note].deterministic
+    end
+  end
+
+  describe "legacy: metadata" do
+    test "round-trips onto the entry and all/0" do
+      by_key = Map.new(DeterministicIDs.all(), &{&1.key, &1})
+
+      assert by_key[:enrichment].legacy == :uuid5_deferred
+      assert by_key[:note].legacy == nil
+    end
+
+    test "carries no behavior - the key mints normally" do
+      assert String.starts_with?(DeterministicIDs.generate!(:enrichment), "enr_")
     end
   end
 end

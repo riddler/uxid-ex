@@ -194,7 +194,7 @@ defmodule UXID.Encoder do
 
   defp ensure_rand_size(uxid), do: uxid
 
-  # Explicit compact_time: false on :xs/:xsmall leaves 0 random bits — the only
+  # Explicit compact_time: false on :xs/:xsmall leaves 0 random bits - the only
   # way to reach monotonic with no field to increment. That is a genuine
   # contradiction; raise rather than silently emit a non-incrementing ID.
   defp ensure_rand(%Codec{monotonic: true, rand_size: 0}),
@@ -202,7 +202,7 @@ defmodule UXID.Encoder do
       raise(
         ArgumentError,
         "monotonic mode needs a random field, but compact_time: false on :xs/:xsmall " <>
-          "leaves none — omit compact_time (it is enabled automatically) or use a larger size"
+          "leaves none - omit compact_time (it is enabled automatically) or use a larger size"
       )
 
   defp ensure_rand(
@@ -228,14 +228,14 @@ defmodule UXID.Encoder do
 
   defp ensure_delimiter(uxid), do: uxid
 
-  # from: (deterministic) and an explicit monotonic: true are a contradiction —
+  # from: (deterministic) and an explicit monotonic: true are a contradiction -
   # one asks for a stable hash, the other for burst-unique randomness. The global
   # monotonic policy is not consulted on this path; only an explicit true conflicts.
   defp reject_monotonic_conflict(%Codec{monotonic: true}),
     do:
       raise(
         ArgumentError,
-        "from: (deterministic mode) and monotonic: true are mutually exclusive — " <>
+        "from: (deterministic mode) and monotonic: true are mutually exclusive - " <>
           "a deterministic ID is a stable hash, not burst-random"
       )
 
@@ -313,7 +313,7 @@ defmodule UXID.Encoder do
     if truncated_time >>> 35 == 31 do
       raise ArgumentError,
             "compact_time cannot encode timestamps at/after ~mid-2038: value 31 is " <>
-              "reserved as the deterministic-ID scheme marker — use a standard size"
+              "reserved as the deterministic-ID scheme marker - use a standard size"
     end
 
     string = encode_time_compact(<<truncated_time::unsigned-size(40)>>, case)

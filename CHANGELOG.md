@@ -2,6 +2,17 @@
 
 ## Upcoming
 
+* Lets a `UXID.Registry` key declare the **body-shape options** that decide what an ID looks like, not just `:size`. Previously `monotonic: true` could only be set per call or per Ecto field, so the one place meant to be the single source of truth couldn't express "this key is monotonic" - and a schema field and a `generate!/2` call could silently disagree:
+  - `defid :event, prefix: "evt", size: :small, monotonic: true` - `true`, `false`, or a list of sizes, bypassing the global policy
+  - `defid :session, prefix: "ses", compact_time: true` - 40 rather than 48 timestamp bits, moving the freed byte into the random field
+  - `defid :ticket, prefix: "tkt", rand_size: 4` - an explicit random-byte count, overriding the width implied by `:size`
+  - Each flows into **both** `generate!/2` and `field_opts/1`, so an `autogenerate: true` field mints the shape the key declares; unset means "defer to the global configuration", exactly as `UXID.generate!/1` does, so declaring nothing changes nothing
+  - A call site can still override all three for a one-off (`generate!(:event, monotonic: false)`) - unlike `:prefix` and `:size` they are defaults, not pins
+  - Registry-wide `default_monotonic:` and `default_compact_time:` join `default_size:`/`default_validate:`
+  - Adds a generated `monotonic/1` accessor alongside `size/1` and `category/1`
+* **Breaking (compile-time only):** adds validation of the shape options - an unknown `:size` (or a size named in a `:monotonic` list) is now a compile error rather than falling through to `:xlarge` and silently minting the wrong shape, as are a non-boolean `:compact_time` and a negative `:rand_size`. A key declaring both `deterministic: true` and `monotonic: true` is rejected too - the pair can never mint, since one asks for a stable hash and the other for burst-random bits
+* The JSON manifest carries `monotonic`, `compact_time`, and `rand_size` (`null` when the key defers to the global config), so a Postgres function or JS client can reproduce the body - `compact_time` in particular changes the encoded length (8 timestamp characters rather than 10)
+
 ## 2.8.0 / 2026-07-26
 
 * Makes **deterministic minting reachable through `UXID.Registry`** - 2.7.0 shipped `from:` but the registry's generated `generate!/1` was arity-1 and dropped caller options, so a registry user had to drop to the plain API and hand-assemble prefix/size:

@@ -101,7 +101,7 @@ defmodule UXID.MixProject do
   defp package() do
     [
       name: @app,
-      files: ~w(lib/uxid* mix.exs README.md LICENSE CHANGELOG.md guides),
+      files: ~w(lib/uxid* mix.exs README.md LICENSE CHANGELOG.md guides .formatter.exs),
       licenses: ["MIT"],
       links: %{"GitHub" => @source_url},
       maintainers: ["UXID Team"]

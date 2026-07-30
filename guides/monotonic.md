@@ -42,6 +42,17 @@ config :uxid, monotonic: [:small, :medium]
 field :id, UXID, autogenerate: true, prefix: "evt", size: :small, monotonic: true
 ```
 
+**On a registry key** - declare it once and both `generate!/2` and `field_opts/1`
+carry it, so no call site or schema field can disagree (see the
+[Prefix Registry guide](registry.md)):
+
+```elixir
+defid :event, prefix: "evt", size: :small, monotonic: true
+
+MyApp.IDs.generate!(:event)                   # monotonic
+MyApp.IDs.generate!(:event, monotonic: false) # one-off opt-out
+```
+
 ## Scope of the guarantee
 
 Monotonic and collision-free *within a single BEAM process*. State lives in the

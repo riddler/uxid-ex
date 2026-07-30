@@ -23,6 +23,11 @@ defmodule UXID.TestSupport.IDs do
   defid :lead, prefix: "lead"
   defid :in_ref, prefix: "in_ref", size: :small
 
+  # Body-shape options declared on the key: an append-only stream that must stay
+  # ordered within a millisecond, and a key that pins its own random width.
+  defid :event, prefix: "evt", size: :small, monotonic: true, compact_time: true
+  defid :ticket, prefix: "tkt", rand_size: 4
+
   retired "usr"
 end
 

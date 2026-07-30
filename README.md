@@ -29,7 +29,7 @@ Add `uxid` to your dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:uxid, "~> 2.8"}
+    {:uxid, "~> 2.9"}
   ]
 end
 ```

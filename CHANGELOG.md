@@ -2,6 +2,8 @@
 
 ## Upcoming
 
+## 2.9.0 / 2026-07-30
+
 * Lets a `UXID.Registry` key declare the **body-shape options** that decide what an ID looks like, not just `:size`. Previously `monotonic: true` could only be set per call or per Ecto field, so the one place meant to be the single source of truth couldn't express "this key is monotonic" - and a schema field and a `generate!/2` call could silently disagree:
   - `defid :event, prefix: "evt", size: :small, monotonic: true` - `true`, `false`, or a list of sizes, bypassing the global policy
   - `defid :session, prefix: "ses", compact_time: true` - 40 rather than 48 timestamp bits, moving the freed byte into the random field

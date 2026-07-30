@@ -21,6 +21,7 @@ defmodule MyApp.IDs do
   defid :org,     prefix: "org",     schema: MyApp.Org,             category: :account
   defid :contact, prefix: "contact", size: :large, schema: MyApp.CRM.Contact
   defid :lead,    prefix: "lead"
+  defid :event,   prefix: "evt",     size: :small, monotonic: true
   retired "usr" # reserve a prefix so it stays unique-checked, never reused
 end
 ```
@@ -62,6 +63,54 @@ MyApp.IDs.generate!(:export, from: natural_key) # deterministic - see below
 `:prefix` and `:size` belong to the key and raise if passed - the registry's whole
 contract is that a key determines its shape. Drop to `UXID.generate!/1` if you
 genuinely need a one-off shape.
+
+## Body-shape options
+
+`:size` is not the only thing that decides what a body looks like. Three more
+options can be declared on the key, for the same reason: they change the ID's
+shape, so every call site and every schema field has to agree on them.
+
+```elixir
+defid :event,   prefix: "evt", size: :small, monotonic: true
+defid :session, prefix: "ses", compact_time: true
+defid :ticket,  prefix: "tkt", rand_size: 4
+```
+
+| Option | Values | Effect |
+|---|---|---|
+| `:monotonic` | `true`, `false`, a list of sizes | Opts the key into (or out of) [monotonic generation](monotonic.md) without consulting the global policy |
+| `:compact_time` | `true`, `false` | Spends 40 rather than 48 bits on the timestamp, moving the freed byte into the random field |
+| `:rand_size` | a non-negative integer | An explicit random-byte count, overriding the width implied by `:size` |
+
+Leave one unset and the key defers to the global application configuration
+exactly as `UXID.generate!/1` does, so declaring nothing changes nothing. Set it
+and it flows into **both** `generate!/2` and `field_opts/1` - so an Ecto
+`autogenerate: true` field mints the same shape as an explicit call, with the
+declaration living in one place:
+
+```elixir
+@primary_key {:id, UXID, [autogenerate: true] ++ MyApp.IDs.field_opts(:event)}
+```
+
+A call site can still override any of the three for a one-off
+(`generate!(:event, monotonic: false)`); unlike `:prefix` and `:size` they are
+defaults, not pins.
+
+Registry-wide defaults are available for the two policy-shaped ones, alongside
+`:default_size` and `:default_validate`:
+
+```elixir
+use UXID.Registry,
+  default_size: :medium,
+  default_monotonic: [:small, :medium],
+  default_compact_time: false
+```
+
+Malformed values are compile errors, like everything else the registry checks: an
+unknown size (in `:size` or in a `:monotonic` list) would otherwise fall through
+to `:xlarge` and silently mint the wrong shape. Declaring both
+`deterministic: true` and `monotonic: true` is rejected too - the pair can never
+mint, since one asks for a stable hash and the other for burst-random bits.
 
 ## Deterministic keys
 
@@ -251,10 +300,11 @@ manifest and let the other runtime read it:
 ```elixir
 MyApp.IDs.manifest()
 # => [%{"key" => "org", "prefix" => "org", "size" => "medium",
-#       "category" => "account", "deterministic" => false}, ...]
+#       "category" => "account", "deterministic" => false,
+#       "monotonic" => nil, "compact_time" => nil, "rand_size" => nil}, ...]
 
 MyApp.IDs.manifest_json()
-# => ~s([{"key":"org","prefix":"org","size":"medium","category":"account","deterministic":false}, ...])
+# => ~s([{"key":"org","prefix":"org","size":"medium","category":"account","deterministic":false,"monotonic":null,"compact_time":null,"rand_size":null}, ...])
 ```
 
 `manifest/0` returns plain JSON-safe data (string keys, scalar values, `nil` for
@@ -275,8 +325,11 @@ end
 ```
 
 The manifest carries `prefix`, `size` (which fixes the random length), `category`,
-`key`, and `deterministic`; combine each `prefix` with the registry's delimiter and
-a Base32 body to assemble an ID anywhere.
+`key`, `deterministic`, and the body-shape options `monotonic`, `compact_time`,
+and `rand_size` (`null` when the key defers to the app's global configuration);
+combine each `prefix` with the registry's delimiter and a Base32 body to assemble
+an ID anywhere. `compact_time` in particular is not optional reading for another
+generator - it changes the encoded length, 8 timestamp characters rather than 10.
 
 `deterministic` tells another generator *which scheme* a key uses, not how to
 implement it - a generator that ignored the flag would mint a random ID for a

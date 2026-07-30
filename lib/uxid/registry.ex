@@ -21,6 +21,7 @@ defmodule UXID.Registry do
         defid :org,     prefix: "org",    schema: MyApp.Org,         category: :account
         defid :contact, prefix: "contact", size: :large, schema: MyApp.CRM.Contact, allow_uuid: true
         defid :lead,    prefix: "lead",   schema: MyApp.CRM.Lead
+        defid :event,   prefix: "evt",    size: :small, monotonic: true
         retired "usr" # reserve a prefix so it counts for uniqueness, never reused
       end
 
@@ -41,6 +42,7 @@ defmodule UXID.Registry do
       MyApp.IDs.prefix(:org)      # => "org"
       MyApp.IDs.size(:org)        # => :medium
       MyApp.IDs.schema(:org)      # => MyApp.Org
+      MyApp.IDs.monotonic(:event) # => true
       MyApp.IDs.field_opts(:org)  # => [prefix: "org", size: :medium, validate: true, allow_uuid: true, delimiter: "_"]
       MyApp.IDs.all()             # => [%{key: :org, prefix: "org", ...}, ...]
 
@@ -48,7 +50,7 @@ defmodule UXID.Registry do
   function or a mobile/JS generator mints prefixes the same way the app does:
 
       MyApp.IDs.manifest()        # => [%{"key" => "org", "prefix" => "org", "size" => "medium", ...}]
-      MyApp.IDs.manifest_json()   # => ~s([{"key":"org",...,"category":"account","deterministic":false},...])
+      MyApp.IDs.manifest_json()   # => ~s([{"key":"org",...,"deterministic":false,"monotonic":null,...},...])
 
   The manifest's `deterministic` flag tells a non-Elixir generator *which scheme*
   a key uses, not how to implement it - see `guides/deterministic.md` for the
@@ -126,6 +128,10 @@ defmodule UXID.Registry do
   # otherwise the split-on-last-delimiter rule becomes ambiguous.
   @body_char ~r/\A[0-9ABCDEFGHJKMNPQRSTVWXYZabcdefghjkmnpqrstvwxyz]\z/
 
+  # Every size UXID recognizes, in both spellings - the accepted values for
+  # `:size` and for the list form of `:monotonic`.
+  @sizes [:xs, :xsmall, :s, :small, :m, :medium, :l, :large, :xl, :xlarge]
+
   @doc "The built-in default `:prefix_format` (permits an internal underscore)."
   def default_prefix_format(), do: @default_prefix_format
 
@@ -163,6 +169,8 @@ defmodule UXID.Registry do
       @uxid_delimiter Keyword.get(opts, :delimiter, UXID.default_delimiter())
       @uxid_default_size Keyword.get(opts, :default_size)
       @uxid_default_validate Keyword.get(opts, :default_validate, true)
+      @uxid_default_monotonic Keyword.get(opts, :default_monotonic)
+      @uxid_default_compact_time Keyword.get(opts, :default_compact_time)
 
       @before_compile UXID.Registry
     end
@@ -172,6 +180,24 @@ defmodule UXID.Registry do
   Registers an id under `key`. Requires `:prefix`; `:size`, `:schema`,
   `:category`, `:validate`, `:allow_uuid`, and `:route` are optional and fall
   back to the registry defaults.
+
+  Three options describe how the *body* is generated. They belong on the key for
+  the same reason `:size` does - they change the ID's shape, so every call site
+  and every schema field must agree on them:
+
+    * `:monotonic` - `true`, `false`, or a list of sizes. Opts the key into (or
+      out of) monotonic generation without consulting the global policy. See
+      `guides/monotonic.md`.
+    * `:compact_time` - `true`/`false`. Spends 40 rather than 48 bits on the
+      timestamp, moving the freed byte into the random field.
+    * `:rand_size` - an explicit random-byte count, overriding the width implied
+      by `:size`.
+
+  Left unset (the default), each falls through to the global application
+  configuration exactly as `UXID.generate!/1` does - so declaring nothing keeps
+  today's behavior. Set them and they flow into both `generate!/2` and
+  `field_opts/1`, so an Ecto `autogenerate: true` field mints the same shape as
+  an explicit call.
 
   Two further options carry no shape information:
 
@@ -198,24 +224,30 @@ defmodule UXID.Registry do
     end
   end
 
-  # This macro emits the registry's whole public API as one quoted block, so its
-  # cyclomatic count reflects the number of generated functions, not branching
-  # logic - the actual branching lives in the small runtime helpers below.
+  # This macro emits the registry's whole public API as one quoted block, so both
+  # its length and its cyclomatic count reflect the number of generated
+  # functions, not branching logic - the actual branching lives in the small
+  # runtime helpers below, and splitting the quote would only scatter the
+  # generated module's definition across several macros.
   # credo:disable-for-next-line Credo.Check.Refactor.CyclomaticComplexity
   defmacro __before_compile__(env) do
     module = env.module
     format = Module.get_attribute(module, :uxid_prefix_format)
     delimiter = Module.get_attribute(module, :uxid_delimiter)
-    default_size = Module.get_attribute(module, :uxid_default_size)
-    default_validate = Module.get_attribute(module, :uxid_default_validate)
-
     validate_delimiter!(module, delimiter)
+
+    defaults = %{
+      size: Module.get_attribute(module, :uxid_default_size),
+      validate: Module.get_attribute(module, :uxid_default_validate),
+      monotonic: Module.get_attribute(module, :uxid_default_monotonic),
+      compact_time: Module.get_attribute(module, :uxid_default_compact_time)
+    }
 
     entries =
       module
       |> Module.get_attribute(:uxid_entries)
       |> Enum.reverse()
-      |> Enum.map(&normalize_entry(&1, module, default_size, default_validate))
+      |> Enum.map(&normalize_entry(&1, module, defaults))
 
     reserved =
       module
@@ -232,7 +264,10 @@ defmodule UXID.Registry do
 
     # The generated module stays a thin façade of delegations; the branching
     # logic lives in the runtime helpers below so it is analysed (and tested)
-    # once, rather than re-inlined into every registry.
+    # once, rather than re-inlined into every registry. The block is long because
+    # it *is* the generated module's whole public surface - splitting it would
+    # scatter that definition across several macros for no gain.
+    # credo:disable-for-next-line Credo.Check.Refactor.LongQuoteBlocks
     quote do
       @uxid_entries_data unquote(Macro.escape(entries))
       @uxid_by_key unquote(Macro.escape(by_key))
@@ -251,7 +286,8 @@ defmodule UXID.Registry do
 
       @doc """
       A JSON-safe manifest of the registered ids - a list of maps with string
-      keys and scalar (`key`, `prefix`, `size`, `category`, `deterministic`)
+      keys and JSON-safe (`key`, `prefix`, `size`, `category`, `deterministic`,
+      `monotonic`, `compact_time`, `rand_size`)
       values, `nil` where unset. This is the cross-source single source of truth:
       emit it so a
       database function or a mobile/JS generator mints prefixes the same way the
@@ -281,8 +317,16 @@ defmodule UXID.Registry do
       def category(key), do: fetch!(key).category
 
       @doc """
+      The monotonic setting for `key` - `nil` when the key defers to the global
+      policy (see `UXID.monotonic/0`).
+      """
+      def monotonic(key), do: fetch!(key).monotonic
+
+      @doc """
       The Ecto field / `UXID` options for `key`: prefix, size, validate,
-      allow_uuid, and the registry delimiter. Spread into a schema field.
+      allow_uuid, and the registry delimiter, plus any generation-shape option
+      (`:monotonic`, `:compact_time`, `:rand_size`) the key sets. Spread into a
+      schema field.
       """
       def field_opts(key), do: UXID.Registry.field_opts_for(fetch!(key), @uxid_delimiter_str)
 
@@ -299,7 +343,9 @@ defmodule UXID.Registry do
       `:prefix` and `:size` belong to the key and raise `ArgumentError` if
       passed - the registry's contract is that a key determines both. The
       intended override surface is `:from`, `:case`, `:monotonic`,
-      `:compact_time`, and `:rand_size`.
+      `:compact_time`, and `:rand_size` - the last three default to whatever the
+      key declares (see `defid/2`) and fall through to the global configuration
+      when it declares nothing.
       """
       def generate!(key, opts \\ []),
         do: UXID.generate!(UXID.Registry.gen_opts(fetch!(key), @uxid_delimiter_str, opts))
@@ -396,6 +442,11 @@ defmodule UXID.Registry do
     end
   end
 
+  # Options that shape the generated body rather than identify the key. They are
+  # threaded through both field_opts/1 and generate!/2 so an autogenerated Ecto
+  # field and an explicit mint agree.
+  @shape_opts [:monotonic, :compact_time, :rand_size]
+
   @doc false
   def field_opts_for(entry, delimiter) do
     [
@@ -404,7 +455,16 @@ defmodule UXID.Registry do
       validate: entry.validate,
       allow_uuid: entry.allow_uuid,
       delimiter: delimiter
-    ]
+    ] ++ shape_opts(entry)
+  end
+
+  # Emitted only for the options the key actually declares: an unset one must
+  # stay absent so the global policy still applies, and a registry that declares
+  # none keeps exactly the option list it had before these were added.
+  defp shape_opts(entry) do
+    @shape_opts
+    |> Enum.map(&{&1, Map.get(entry, &1)})
+    |> Enum.reject(fn {_opt, value} -> is_nil(value) end)
   end
 
   # Options a key owns: they are derived from the entry and a call site may not
@@ -416,7 +476,7 @@ defmodule UXID.Registry do
     reject_pinned!(entry, overrides)
 
     opts =
-      [prefix: entry.prefix, size: entry.size, delimiter: delimiter]
+      ([prefix: entry.prefix, size: entry.size, delimiter: delimiter] ++ shape_opts(entry))
       |> Keyword.merge(overrides)
 
     require_from!(entry, opts)
@@ -581,7 +641,19 @@ defmodule UXID.Registry do
     end
   end
 
-  @manifest_fields [:key, :prefix, :size, :category, :deterministic]
+  # The manifest must fully describe the body another runtime has to reproduce,
+  # so the shape options ride along with :size - :compact_time in particular
+  # changes the encoded length (8 timestamp chars rather than 10).
+  @manifest_fields [
+    :key,
+    :prefix,
+    :size,
+    :category,
+    :deterministic,
+    :monotonic,
+    :compact_time,
+    :rand_size
+  ]
 
   @doc false
   def manifest(entries) do
@@ -605,6 +677,9 @@ defmodule UXID.Registry do
   defp scalar(false), do: false
   defp scalar(value) when is_atom(value), do: Atom.to_string(value)
   defp scalar(value) when is_binary(value), do: value
+  defp scalar(value) when is_integer(value), do: value
+  # A list-form :monotonic - the only list-valued manifest field.
+  defp scalar(value) when is_list(value), do: Enum.map(value, &scalar/1)
 
   defp entry_json(entry) do
     inner =
@@ -619,6 +694,10 @@ defmodule UXID.Registry do
   defp json_value(true), do: "true"
   defp json_value(false), do: "false"
   defp json_value(value) when is_binary(value), do: json_string(value)
+  defp json_value(value) when is_integer(value), do: Integer.to_string(value)
+
+  defp json_value(value) when is_list(value),
+    do: "[" <> Enum.map_join(value, ",", &json_value/1) <> "]"
 
   defp json_string(value), do: IO.iodata_to_binary([?", escape(value), ?"])
 
@@ -637,7 +716,7 @@ defmodule UXID.Registry do
 
   # === Compile-time helpers (run inside __before_compile__) ===
 
-  defp normalize_entry({key, opts}, module, default_size, default_validate) do
+  defp normalize_entry({key, opts}, module, defaults) do
     unless is_atom(key) do
       raise ArgumentError, "defid key must be an atom in #{inspect(module)}, got: #{inspect(key)}"
     end
@@ -657,11 +736,17 @@ defmodule UXID.Registry do
     %{
       key: key,
       prefix: prefix,
-      size: Keyword.get(opts, :size, default_size),
+      size: Keyword.get(opts, :size, defaults.size),
       schema: schema,
       category: Keyword.get(opts, :category),
-      validate: Keyword.get(opts, :validate, default_validate),
+      validate: Keyword.get(opts, :validate, defaults.validate),
       allow_uuid: Keyword.get(opts, :allow_uuid, true),
+      # Body-shape options. nil (the default) means "not declared" - the key
+      # defers to the global policy at generation time, so these are inert until
+      # an app opts a key in.
+      monotonic: Keyword.get(opts, :monotonic, defaults.monotonic),
+      compact_time: Keyword.get(opts, :compact_time, defaults.compact_time),
+      rand_size: Keyword.get(opts, :rand_size),
       # A key "must route" (verify!/1 fails if it resolves to no schema) when it
       # carries a compile-time `schema:` literal, or is explicitly opted in with
       # `route: true` so a self-registered schema is required to fill it.
@@ -675,6 +760,53 @@ defmodule UXID.Registry do
       # backlog is visible in the registry rather than buried in a moduledoc.
       legacy: Keyword.get(opts, :legacy)
     }
+    |> validate_shape!(module)
+  end
+
+  # The shape options are validated on the *merged* entry rather than the raw
+  # `defid` opts, so a bad registry-level `:default_size` / `:default_monotonic`
+  # is caught too. A malformed value would otherwise fail silently: an unknown
+  # size falls through to :xlarge, and a monotonic list naming one canonicalizes
+  # to :xl and quietly matches the wrong keys.
+  defp validate_shape!(entry, module) do
+    check!(entry, module, :size, &(&1 in @sizes), "one of #{inspect(@sizes)}")
+    check!(entry, module, :compact_time, &is_boolean/1, "true or false")
+    check!(entry, module, :rand_size, &(is_integer(&1) and &1 >= 0), "a non-negative integer")
+
+    check!(
+      entry,
+      module,
+      :monotonic,
+      &(is_boolean(&1) or (is_list(&1) and Enum.all?(&1, fn size -> size in @sizes end))),
+      "true, false, or a list of sizes from #{inspect(@sizes)}"
+    )
+
+    reject_deterministic_monotonic!(entry, module)
+
+    entry
+  end
+
+  # UXID.generate!/1 raises on this pair; a key declaring both could never mint
+  # at all, so catch it at compile time rather than on the first call.
+  defp reject_deterministic_monotonic!(%{deterministic: true, monotonic: true} = entry, module) do
+    raise ArgumentError,
+          "defid #{inspect(entry.key)} in #{inspect(module)} declares both " <>
+            "deterministic: true and monotonic: true - a deterministic ID is a stable " <>
+            "hash, not burst-random"
+  end
+
+  defp reject_deterministic_monotonic!(_entry, _module), do: :ok
+
+  defp check!(entry, module, opt, valid?, expected) do
+    value = Map.fetch!(entry, opt)
+
+    if is_nil(value) or valid?.(value) do
+      :ok
+    else
+      raise ArgumentError,
+            "invalid #{inspect(opt)} for defid #{inspect(entry.key)} in #{inspect(module)}: " <>
+              "#{inspect(value)} - expected #{expected}"
+    end
   end
 
   @defid_opts [
@@ -686,7 +818,10 @@ defmodule UXID.Registry do
     :allow_uuid,
     :route,
     :deterministic,
-    :legacy
+    :legacy,
+    :monotonic,
+    :compact_time,
+    :rand_size
   ]
 
   # A compile-time registry whose selling point is catching mistakes at compile

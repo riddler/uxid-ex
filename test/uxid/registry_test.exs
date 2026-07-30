@@ -1,9 +1,19 @@
+# A registry-level default in the list form of :monotonic, for the manifest's
+# only non-scalar field.
+defmodule UXID.RegistryTest.ListMonotonicIDs do
+  @moduledoc false
+  use UXID.Registry, default_monotonic: [:small, :medium]
+
+  defid :note, prefix: "note", size: :small
+end
+
 defmodule UXID.RegistryTest do
   use ExUnit.Case, async: true
 
   doctest UXID.Registry
 
-  alias UXID.TestSupport.{Contact, DeterministicIDs, IDs, Org}
+  alias UXID.RegistryTest.ListMonotonicIDs
+  alias UXID.TestSupport.{Contact, DeterministicIDs, Event, IDs, Org}
 
   describe "by-key API" do
     test "prefix/1, size/1, schema/1, category/1" do
@@ -42,12 +52,33 @@ defmodule UXID.RegistryTest do
       assert Keyword.get(IDs.field_opts(:contact), :allow_uuid) == false
     end
 
+    test "field_opts/1 carries the shape options a key declares" do
+      opts = IDs.field_opts(:event)
+
+      assert Keyword.get(opts, :monotonic) == true
+      assert Keyword.get(opts, :compact_time) == true
+      assert Keyword.get(IDs.field_opts(:ticket), :rand_size) == 4
+    end
+
+    test "field_opts/1 omits shape options a key leaves unset" do
+      opts = IDs.field_opts(:org)
+
+      refute Keyword.has_key?(opts, :monotonic)
+      refute Keyword.has_key?(opts, :compact_time)
+      refute Keyword.has_key?(opts, :rand_size)
+    end
+
+    test "monotonic/1 reads the key's declaration" do
+      assert IDs.monotonic(:event) == true
+      assert IDs.monotonic(:org) == nil
+    end
+
     test "all/0 lists entries in declaration order" do
-      assert Enum.map(IDs.all(), & &1.key) == [:org, :contact, :lead, :in_ref]
+      assert Enum.map(IDs.all(), & &1.key) == [:org, :contact, :lead, :in_ref, :event, :ticket]
     end
 
     test "keys/0 and reserved/0" do
-      assert IDs.keys() == [:org, :contact, :lead, :in_ref]
+      assert IDs.keys() == [:org, :contact, :lead, :in_ref, :event, :ticket]
       assert IDs.reserved() == ["usr"]
     end
 
@@ -77,8 +108,20 @@ defmodule UXID.RegistryTest do
                "prefix" => "lead",
                "size" => "medium",
                "category" => nil,
-               "deterministic" => false
+               "deterministic" => false,
+               "monotonic" => nil,
+               "compact_time" => nil,
+               "rand_size" => nil
              }
+    end
+
+    test "manifest/0 carries the shape options another generator must reproduce" do
+      event = Enum.find(IDs.manifest(), &(&1["key"] == "event"))
+      ticket = Enum.find(IDs.manifest(), &(&1["key"] == "ticket"))
+
+      assert event["monotonic"] == true
+      assert event["compact_time"] == true
+      assert ticket["rand_size"] == 4
     end
 
     test "manifest_json/0 emits deterministic JSON with nulls" do
@@ -88,10 +131,22 @@ defmodule UXID.RegistryTest do
       assert String.ends_with?(json, "]")
 
       assert json =~
-               ~s({"key":"org","prefix":"org","size":"medium","category":"account","deterministic":false})
+               ~s({"key":"org","prefix":"org","size":"medium","category":"account","deterministic":false,"monotonic":null,"compact_time":null,"rand_size":null})
 
       assert json =~
-               ~s({"key":"lead","prefix":"lead","size":"medium","category":null,"deterministic":false})
+               ~s({"key":"lead","prefix":"lead","size":"medium","category":null,"deterministic":false,"monotonic":null,"compact_time":null,"rand_size":null})
+    end
+
+    test "manifest_json/0 emits shape options as unquoted scalars" do
+      json = IDs.manifest_json()
+
+      assert json =~ ~s("monotonic":true,"compact_time":true)
+      assert json =~ ~s("rand_size":4)
+    end
+
+    test "manifest/0 renders a list-form monotonic as a JSON array of sizes" do
+      assert [%{"monotonic" => ["small", "medium"]}] = ListMonotonicIDs.manifest()
+      assert ListMonotonicIDs.manifest_json() =~ ~s("monotonic":["small","medium"])
     end
 
     test "manifest/0 carries the deterministic flag as a real boolean" do
@@ -203,6 +258,51 @@ defmodule UXID.RegistryTest do
       end
     end
 
+    test "rejects a malformed shape option" do
+      bad = [
+        {"monotonic: :yes", "defid :a, prefix: \"aa\", monotonic: :yes"},
+        {"monotonic list", "defid :a, prefix: \"aa\", monotonic: [:small, :tiny]"},
+        {"compact_time", "defid :a, prefix: \"aa\", compact_time: :yes"},
+        {"rand_size", "defid :a, prefix: \"aa\", rand_size: -1"},
+        {"size", "defid :a, prefix: \"aa\", size: :tiny"}
+      ]
+
+      for {label, defid} <- bad do
+        assert_raise ArgumentError, ~r/invalid .* for defid :a/, fn ->
+          Code.compile_string("""
+          defmodule Sample.BadShape#{:erlang.phash2(label)} do
+            use UXID.Registry
+            #{defid}
+          end
+          """)
+        end
+      end
+    end
+
+    test "rejects a bad registry-level default" do
+      assert_raise ArgumentError, ~r/invalid :size for defid :a/, fn ->
+        Code.compile_string("""
+        defmodule Sample.BadDefaultSize do
+          use UXID.Registry, default_size: :tiny
+          defid :a, prefix: "aa"
+        end
+        """)
+      end
+    end
+
+    test "rejects a key that is both deterministic and monotonic" do
+      assert_raise ArgumentError,
+                   ~r/declares both\s+deterministic: true and monotonic: true/,
+                   fn ->
+                     Code.compile_string("""
+                     defmodule Sample.DetMono do
+                       use UXID.Registry
+                       defid :a, prefix: "aa", deterministic: true, monotonic: true
+                     end
+                     """)
+                   end
+    end
+
     test "rejects an unrecognized defid option" do
       assert_raise ArgumentError, ~r/unrecognized defid option\(s\) for :a.*\[:validat\]/s, fn ->
         Code.compile_string("""
@@ -249,10 +349,46 @@ defmodule UXID.RegistryTest do
       end
     end
 
+    test "a monotonic key mints strictly increasing ids within a millisecond" do
+      ids = for _ <- 1..25, do: IDs.generate!(:event)
+
+      assert ids == Enum.sort(ids)
+      assert Enum.uniq(ids) == ids
+    end
+
+    test "a call site can still opt a monotonic key out" do
+      # Same shape, but drawn from the CSPRNG rather than the per-prefix counter.
+      id = IDs.generate!(:event, monotonic: false)
+
+      assert String.starts_with?(id, "evt_")
+      assert String.length(id) == String.length(IDs.generate!(:event))
+    end
+
+    test "a key's rand_size widens the body" do
+      # :ticket pins 4 random bytes (7 chars) against the default :xl 10 (16).
+      assert String.length(IDs.generate!(:ticket)) ==
+               String.length("tkt_") + 10 + 7
+    end
+
     test "the pinned-opt check also guards generate/2" do
       assert_raise ArgumentError, ~r/cannot be overridden/, fn ->
         IDs.generate(:org, prefix: "nope")
       end
+    end
+  end
+
+  describe "shape options through an Ecto field" do
+    test "autogenerate mints the shape the key declares" do
+      {:parameterized, {UXID, params}} = Event.__schema__(:type, :id)
+
+      assert params.monotonic == true
+      assert params.compact_time == true
+
+      # :small + compact_time => an 8-char timestamp and 3 random bytes (5 chars).
+      ids = for _ <- 1..10, do: UXID.autogenerate(params)
+
+      assert Enum.all?(ids, &(String.length(&1) == String.length("evt_") + 8 + 5))
+      assert ids == Enum.sort(ids)
     end
   end
 

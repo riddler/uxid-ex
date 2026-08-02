@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 540 320" width="540" height="320" role="img" aria-label="UXID">
+  <title>UXID</title>
+
+  <defs>
+    <!-- The X is drawn last and on top. This mask knocks a seam out of the u and i
+         wherever the X crosses them, so the overlap reads as a cut rather than a merge.
+         Stroke width = 16 seam + 12 border overhang. -->
+    <path id="uxid-x" d="M154,60 L206,60 L236,114 L266,60 L318,60 L262,160
+                         L318,260 L266,260 L236,206 L206,260 L154,260 L210,160 Z"/>
+    <mask id="uxid-seam" maskUnits="userSpaceOnUse" x="0" y="0" width="540" height="320">
+      <rect width="540" height="320" fill="#fff"/>
+      <use href="#uxid-x" fill="#000" stroke="#000" stroke-width="28" stroke-linejoin="miter"/>
+    </mask>
+
+    <filter id="uxid-shadow" x="-15%" y="-15%" width="130%" height="145%">
+      <feDropShadow dx="0" dy="12" stdDeviation="10" flood-color="#2B0A7A" flood-opacity="0.4"/>
+    </filter>
+  </defs>
+
+  <!-- paint-order puts each glyph's stroke behind its own fill, so the stroke reads
+       as an outer border rather than a line straddling the edge -->
+  <g fill="#4C15D5" stroke="#A78BFA" stroke-width="12" stroke-linejoin="miter"
+     paint-order="stroke fill" filter="url(#uxid-shadow)">
+
+    <!-- u, i and d share a 140px height centred on y=160; the X is 200px on the same axis -->
+    <g mask="url(#uxid-seam)" fill-rule="evenodd">
+      <path d="M40,90 L40,161 A69,69 0 0 0 178,161 L178,90 L140,90 L140,161
+               A31,31 0 0 1 78,161 L78,90 Z"/>
+      <path d="M298,90 H336 V230 H298 Z"/>
+      <path d="M360,90 L430,90 A70,70 0 0 1 430,230 L360,230 Z
+               M398,128 L430,128 A32,32 0 0 1 430,192 L398,192 Z"/>
+    </g>
+
+    <use href="#uxid-x"/>
+  </g>
+</svg>

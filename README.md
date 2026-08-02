@@ -1,3 +1,5 @@
+<img src="assets/uxid-wordmark.svg" alt="UXID" width="300">
+
 # UXID
 
 [![MIT License][badge_license_url]](LICENSE)

@@ -78,6 +78,9 @@ defmodule UXID.MixProject do
       canonical: "https://hexdocs.pm/uxid",
       main: "readme",
       source_url: @source_url,
+
+      # Copied to doc/assets so the wordmark in README.md resolves on HexDocs
+      assets: %{"assets" => "assets"},
       extras: [
         "README.md",
         "guides/sizes.md",
@@ -101,7 +104,7 @@ defmodule UXID.MixProject do
   defp package() do
     [
       name: @app,
-      files: ~w(lib/uxid* mix.exs README.md LICENSE CHANGELOG.md guides .formatter.exs),
+      files: ~w(lib/uxid* mix.exs README.md LICENSE CHANGELOG.md guides assets .formatter.exs),
       licenses: ["MIT"],
       links: %{"GitHub" => @source_url},
       maintainers: ["UXID Team"]

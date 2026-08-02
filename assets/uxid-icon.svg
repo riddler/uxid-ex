@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="UXID">
+  <title>UXID</title>
+
+  <defs>
+    <!-- Same construction as uxid-wordmark.svg: the X is drawn last and on top, and
+         this mask knocks a seam out of the u and i wherever it crosses them. -->
+    <path id="uxid-x" d="M154,60 L206,60 L236,114 L266,60 L318,60 L262,160
+                         L318,260 L266,260 L236,206 L206,260 L154,260 L210,160 Z"/>
+    <mask id="uxid-seam" maskUnits="userSpaceOnUse" x="0" y="0" width="540" height="320">
+      <rect width="540" height="320" fill="#fff"/>
+      <use href="#uxid-x" fill="#000" stroke="#000" stroke-width="28" stroke-linejoin="miter"/>
+    </mask>
+  </defs>
+
+  <rect width="512" height="512" rx="112" fill="#4C15D5"/>
+
+  <!-- The wordmark's content centre is (270,160); scaling by 0.88 and shifting puts it
+       at (256,256) with even padding. Reversed out of the card, and with no drop shadow -
+       a blur turns to mush at favicon sizes. -->
+  <g transform="translate(18.4,115.2) scale(0.88)"
+     fill="#FFFFFF" stroke="#A78BFA" stroke-width="12" stroke-linejoin="miter"
+     paint-order="stroke fill">
+
+    <g mask="url(#uxid-seam)" fill-rule="evenodd">
+      <path d="M40,90 L40,161 A69,69 0 0 0 178,161 L178,90 L140,90 L140,161
+               A31,31 0 0 1 78,161 L78,90 Z"/>
+      <path d="M298,90 H336 V230 H298 Z"/>
+      <path d="M360,90 L430,90 A70,70 0 0 1 430,230 L360,230 Z
+               M398,128 L430,128 A32,32 0 0 1 430,192 L398,192 Z"/>
+    </g>
+
+    <use href="#uxid-x"/>
+  </g>
+</svg>

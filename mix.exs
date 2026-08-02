@@ -81,6 +81,7 @@ defmodule UXID.MixProject do
 
       # Copied to doc/assets so the wordmark in README.md resolves on HexDocs
       assets: %{"assets" => "assets"},
+      logo: "assets/uxid-icon.svg",
       extras: [
         "README.md",
         "guides/sizes.md",

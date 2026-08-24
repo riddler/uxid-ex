@@ -1,6 +1,6 @@
 # Changelog
 
-## Upcoming
+## 2.9.1 / 2026-08-24
 
 * Adds CI and HexDocs badges to the README, and bumps the docs generator (`ex_doc`, dev-only) to `~> 0.40`
 * Adds a UXID wordmark at `assets/uxid-wordmark.svg`, shown at the top of the README. The `assets` directory ships in the Hex package and is copied into the generated docs, so the mark renders on GitHub, hex.pm, and HexDocs alike

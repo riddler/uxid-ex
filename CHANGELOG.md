@@ -1,5 +1,22 @@
 # Changelog
 
+## 2.9.2 / 2026-10-05
+
+The library's code is unchanged: no function, option or return value differs from 2.9.1. This release ships documentation, quality tooling and the CI and release workflows.
+
+### Changed
+
+- Reshapes the README as an introduction and a map: what the package is, why it exists, how to install it, one usage block, and the guides listed under the question each answers
+- Groups the HexDocs guides by kind (How-to guides, Reference, Explanation), with task titles on the two how-to pages
+- Adds an explanation page on why an ID has a prefix, a time and randomness, and how the size, compact-time, monotonic and deterministic options trade one part against another
+- Moves the quality gate to `ex_quality` `~> 0.16` (dev-only), with format check, warnings as errors, credo strict and the docs, doc_links and readme stages
+- Replaces the test workflow with a CI workflow that runs the full quality gate and keeps the test suite running on Elixir 1.16 / OTP 25
+- Adds a release workflow that publishes the package and its docs to Hex when a version tag is pushed
+
+### Fixed
+
+- The `generate!/2` doc that `UXID.Registry` defines for every registry uses a neutral key in its deterministic example
+
 ## 2.9.1 / 2026-08-24
 
 * Adds CI and HexDocs badges to the README, and bumps the docs generator (`ex_doc`, dev-only) to `~> 0.40`

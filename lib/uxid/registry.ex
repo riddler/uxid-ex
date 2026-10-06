@@ -337,7 +337,7 @@ defmodule UXID.Registry do
       entry does not own - most usefully `from:` for a deterministic
       (name-based) ID:
 
-          MyApp.IDs.generate!(:faraday_export, from: phone)
+          MyApp.IDs.generate!(:export, from: phone)
           MyApp.IDs.generate!(:share, monotonic: false)
 
       `:prefix` and `:size` belong to the key and raise `ArgumentError` if

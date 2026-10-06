@@ -94,7 +94,18 @@ defmodule UXID.MixProject do
         "LICENSE"
       ],
       groups_for_extras: [
-        Guides: ~r/guides\//
+        "How-to guides": [
+          "guides/ecto.md",
+          "guides/registry.md"
+        ],
+        Reference: [
+          "guides/sizes.md",
+          "guides/configuration.md"
+        ],
+        Explanation: [
+          "guides/monotonic.md",
+          "guides/deterministic.md"
+        ]
       ],
       groups_for_modules: [
         Registry: [UXID.Registry, UXID.Registered]

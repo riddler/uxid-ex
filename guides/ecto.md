@@ -1,4 +1,4 @@
-# Ecto Integration
+# How to use UXIDs in Ecto schemas
 
 UXID implements `Ecto.ParameterizedType`, so a UXID column is just a `:string`
 (text) column with `UXID` as the field type. Ecto is an optional dependency -

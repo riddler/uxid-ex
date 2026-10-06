@@ -1,4 +1,4 @@
-# Prefix Registry
+# How to govern prefixes with a registry
 
 A prefix only pays off - "the ID names its resource on sight" - when it is
 globally unique and well-formed across your whole app. `UXID.Registry` is an

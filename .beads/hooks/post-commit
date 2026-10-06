@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# Record every commit in the activity journal.
+#
+# Installed globally via core.hooksPath (see install.sh), so it applies to every
+# repo and every worktree without per-repo setup. `journal capture-commit` drops
+# commits in repos outside this machine's configured roots, so enabling it
+# globally does not mean journalling everything.
+#
+# core.hooksPath *replaces* .git/hooks rather than adding to it, so a repo that
+# installs its own post-commit (husky, lefthook, overcommit) would silently stop
+# running it. Chain to the repo's own hook afterwards to keep that working.
+#
+# Must never fail a commit: swallow everything.
+"$HOME/dotfiles/bin/journal" capture-commit >/dev/null 2>&1 || true
+
+# Note: `git rev-parse --git-path hooks/post-commit` honours core.hooksPath and
+# so resolves back to *this* file - it can't be used to find the repo's own
+# hook. Go via the git dir instead. Worktrees keep hooks in the common dir.
+git_common="$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)"
+repo_hook="$git_common/hooks/post-commit"
+if [ -n "$git_common" ] && [ -x "$repo_hook" ]; then
+  "$repo_hook" "$@" || true
+fi
+exit 0

@@ -8,25 +8,26 @@
 [![Hex Downloads][badge_downloads_url]](https://hex.pm/packages/uxid)
 [![Hex Docs][badge_docs_url]](https://hexdocs.pm/uxid/)
 
-**U**ser e**X**perience focused **ID**entifiers (UXIDs) are prefixed, K-sortable,
-Stripe-style identifiers like `usr_01epey2p06tr1rtv07xa82zgjj`. They are:
+User eXperience focused IDentifiers for Elixir: prefixed, K-sortable,
+Stripe-style IDs a person can read, copy and route back to their resource, with
+optional Ecto types and a prefix registry. An ID looks like
+`usr_01epey2p06tr1rtv07xa82zgjj`: the prefix names the resource, and the body
+carries a timestamp and randomness in lowercase Crockford Base32.
 
-* Descriptive - the prefix names the resource on sight (aids debugging and investigation)
-* Copy/paste friendly - double-clicking selects the entire ID
-* Tunable in size - shortened for low-cardinality resources
-* Secure against enumeration attacks
-* Application-generated - not tied to the datastore
-* K-sortable - lexicographically sortable by time, so they index well
-* Coordination-free - no startup or generation-time coordination required
-* Unlikely to collide - more randomness, lower odds
-* Human-transmissible - easy to read out accurately over the phone
-* Optionally **monotonic** - a burst within one millisecond stays unique and strictly ordered
-* Optionally **deterministic** - the same input string always maps to the same ID (UUIDv5-style), marked with a leading `z` and sorted after time-based IDs
-* Optionally **governed by a registry** - one module keeps every prefix unique and maps an ID back to its resource
+## Why UXID
 
-Many of the concepts of [Stripe IDs][stripe_ids_url] have been used in this library.
+An auto-increment key leaks how many rows a table holds and invites
+enumeration; a random UUID fixes both but is long, unordered and anonymous, so
+in a log line, a URL or a support thread nobody can tell what it points at, and
+a double-click selects only part of it. A UXID names its resource in its prefix,
+selects whole on a double-click, reads aloud without ambiguity, sorts by
+creation time so it indexes well, and is generated in the application with no
+coordination between nodes. Its size is tunable for low-cardinality resources,
+a monotonic mode keeps a burst within one millisecond unique and ordered, a
+deterministic mode maps the same input to the same ID, and a registry keeps
+every prefix in an app unique and routes an ID back to its resource.
 
-## Installation
+## Install
 
 Add `uxid` to your dependencies in `mix.exs`:
 
@@ -38,9 +39,9 @@ def deps do
 end
 ```
 
-Ecto is an optional dependency - UXID only pulls it in if your app already uses it.
+Ecto is an optional dependency: UXID only uses it if your app already does.
 
-## Quick start
+## Basic usage
 
 ```elixir
 # No options generates a plain ULID
@@ -53,20 +54,11 @@ UXID.generate!(prefix: "cus")                 # "cus_01emdgjf0dqxqj8fm78xe97y3h"
 # T-shirt sizes: :xs :s :m :l :xl (or :xsmall :small :medium :large :xlarge)
 UXID.generate!(prefix: "cus", size: :small)   # "cus_01eqrh884aqyy1"
 
-# Uppercase to match earlier UXID versions
-UXID.generate!(case: :upper)                  # "01EMDGJF0DQXQJ8FM78XE97Y3H"
-
 # Deterministic: same input -> same id, forever (prefix is the namespace)
 UXID.generate!(prefix: "usr", from: "alice@example.com")
 # => "usr_zcvt7epac0t1ebcsjfyf7cwz25"
-```
 
-## Ecto in 30 seconds
-
-UXIDs work as Ecto fields, including primary keys - set the field type to `UXID`
-and pass the same options you'd pass to `generate!/1`:
-
-```elixir
+# As an Ecto field type, primary keys included, with the same options
 defmodule YourApp.User do
   use Ecto.Schema
 
@@ -77,25 +69,30 @@ defmodule YourApp.User do
 end
 ```
 
-See the [Ecto Integration guide][guide_ecto_url] for foreign keys, strict
-validation, and migrating a `uuid` column to UXIDs.
-
-## Guides
-
-The five-minute path is above; each area has a dedicated guide:
-
-* **[Sizes & Encoding][guide_sizes_url]** - the t-shirt sizes, how much randomness each carries, and compact-time mode for extra collision resistance.
-* **[Ecto Integration][guide_ecto_url]** - primary/foreign keys, strict `validate:` casting, `allow_uuid` coexistence, and `UXID.valid?/2`.
-* **[Monotonic IDs][guide_monotonic_url]** - guaranteed same-millisecond uniqueness and ordering, the security tradeoff, and when to use it.
-* **[Deterministic IDs][guide_deterministic_url]** - name-based (UUIDv5-style) IDs where the same input always maps to the same ID, with the prefix as the namespace.
-* **[Prefix Registry][guide_registry_url]** - a compile-time DSL that keeps every prefix unique, routes an ID back to its schema, works in layered/umbrella apps, and exports a cross-source JSON manifest.
-* **[Configuration][guide_configuration_url]** - every `config :uxid` key in one place, with per-call vs. global precedence.
-
 ## Documentation
 
-Full API docs are on [HexDocs][hexdocs_project_url]. The registry and routing
-patterns are drawn from Adam Kirk's ElixirConf US 2025 talk,
-[_UXIDs in Elixir/Ecto_][uxid_talk_url].
+- Do
+  - [How to use UXIDs in Ecto schemas][guide_ecto_url]: primary and foreign keys, strict `validate:` casting, `allow_uuid` coexistence, `UXID.valid?/2`, and migrating a `uuid` column.
+  - [How to govern prefixes with a registry][guide_registry_url]: the compile-time DSL that keeps every prefix unique, routes an ID back to its schema, works in layered and umbrella apps, and exports a JSON manifest.
+- Look up
+  - [The API reference][hexdocs_api_url]: every public module and function.
+  - [Sizes & Encoding][guide_sizes_url]: the t-shirt sizes, how much randomness each carries, and compact-time mode.
+  - [Configuration][guide_configuration_url]: every `config :uxid` key in one place, with per-call and global precedence.
+  - [The changelog][hexdocs_changelog_url]: what changed in each version.
+- Understand
+  - [Monotonic IDs][guide_monotonic_url]: same-millisecond uniqueness and ordering, the security tradeoff, and when to use it.
+  - [Deterministic IDs][guide_deterministic_url]: name-based (UUIDv5-style) IDs, with the prefix as the namespace.
+  - [_Designing APIs for humans: object IDs_][stripe_ids_url]: the Stripe ID design many of UXID's choices follow.
+  - [_UXIDs in Elixir/Ecto_][uxid_talk_url]: Adam Kirk's ElixirConf US 2025 talk, the source of the registry and routing patterns.
+
+## Compatibility
+
+`mix.exs` declares `elixir: "~> 1.8"`. CI runs the full quality gate on the
+toolchain `mise.toml` pins and the test suite alone on Elixir 1.16 / OTP 25,
+the oldest pair it is tested on. There is no required runtime dependency. Ecto
+is optional (`{:ecto, "~> 3.12"}`): when it is loaded, `UXID` is also an
+`Ecto.ParameterizedType`; without it, everything but the Ecto type works the
+same.
 
 ## License
 
@@ -103,7 +100,8 @@ UXID is released under the [MIT License](LICENSE).
 
 <!-- LINKS -->
 [hex_project_url]: https://hex.pm/packages/uxid
-[hexdocs_project_url]: https://hexdocs.pm/uxid
+[hexdocs_api_url]: https://hexdocs.pm/uxid/api-reference.html
+[hexdocs_changelog_url]: https://hexdocs.pm/uxid/changelog.html
 
 <!-- Guide links are absolute HexDocs URLs on purpose. A relative link like
      `guides/registry.md` renders correctly on GitHub and is rewritten to

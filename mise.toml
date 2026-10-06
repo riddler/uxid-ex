@@ -7,7 +7,8 @@
 # one of them: the same erlang/elixir pair the satellites pin, so one
 # developer machine serves every repo without switching. It replaces the
 # former .tool-versions (same pair), and it is the file the family's CI
-# workflows read. It also satisfies mix.exs's `elixir: "~> 1.8"`.
+# workflows read, this repository's .github/workflows/ci.yml among them: its
+# gate job provisions exactly this pair. It also satisfies mix.exs's `elixir: "~> 1.8"`.
 
 [tools]
 erlang = "27.3"

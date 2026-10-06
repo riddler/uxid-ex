@@ -1,0 +1,95 @@
+{
+  "wurk": 1,
+
+  "beads": {
+    "prefix": "ux",
+    "sync": "dolthub",
+    "topology": "beads",
+    "areas": {
+      "labels": [
+        "area:registry",
+        "area:ecto",
+        "area:codec",
+        "area:docs",
+        "area:build"
+      ],
+      "lands_alone": ["area:build"],
+      "always_batchable": ["upstream"]
+    }
+  },
+
+  "forge": {
+    "kind": "github",
+    "labels": {}
+  },
+
+  "gate": {
+    "full": ["mix", "quality"],
+    "loop": ["mix", "quality", "--profile", "loop"],
+    "report": ["mix", "quality", "--report", "-"],
+    "build_paths": ["lib/", "test/", "config/", "mix.exs", "mix.lock"],
+    "also_gated_paths": [".quality.exs", "coveralls.json"],
+    "moving_files": [".quality.exs", "coveralls.json"],
+    "sabotage": {
+      "test_roots": ["test/"],
+      "test_pattern": "\\btest\\s+\"",
+      "exempt_prefixes": []
+    },
+    "project_level_skips": [
+      "^opt-in; set (docs|doc_links|readme|diataxis): \\[enabled: :auto\\] in \\.quality\\.exs$"
+    ],
+    "not_applicable_skips": [
+      "^:doctor not installed$",
+      "^:gettext not installed$",
+      "^:sobelow not installed$"
+    ]
+  },
+
+  "parallelism": {
+    "model": "worktree-per-issue",
+    "worktrees_dir": "../uxid-ex-worktrees",
+    "trust": ["mise", "trust", "{path}"],
+    "warm_clone": ["deps", "_build"],
+    "warm_globs": ["_build/dev/dialyxir_erlang-*_elixir-*_deps-dev.plt*"],
+    "warm": [["mix", "deps.get"]],
+    "repair_when": "mix.lock",
+    "repair": [["mix", "deps.get"]],
+    "post_branch": []
+  },
+
+  "tmux": {
+    "session": "uxid-ex",
+    "model": "opus"
+  },
+
+  "models": {
+    "direction": "fable"
+  },
+
+  "artifacts": {
+    "plans": "docs/plans",
+    "research": "docs/research",
+    "filename": "YYMMDD-[id-]kebab"
+  },
+
+  "commits": {
+    "style": "s-form",
+    "subject_under": 72,
+    "body_line_max": 72,
+    "total_lines_max": 40,
+    "trailer": {
+      "key": "Refs"
+    }
+  },
+
+  "changelog": {
+    "mode": "fragments",
+    "dir": "changelog.d"
+  },
+
+  "release": {
+    "kind": "hex",
+    "version_file": "mix.exs",
+    "readme_pin": true
+  }
+}

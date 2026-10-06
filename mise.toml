@@ -1,0 +1,14 @@
+# mise config for uxid: toolchain only.
+#
+#   mise install        provision the toolchain below
+#
+# This repository is not part of the statifier package family, but it adopts
+# the family's satellite conventions (see CLAUDE.md), and the toolchain pin is
+# one of them: the same erlang/elixir pair the satellites pin, so one
+# developer machine serves every repo without switching. It replaces the
+# former .tool-versions (same pair), and it is the file the family's CI
+# workflows read. It also satisfies mix.exs's `elixir: "~> 1.8"`.
+
+[tools]
+erlang = "27.3"
+elixir = "1.18.3-otp-27"

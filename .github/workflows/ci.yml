@@ -1,0 +1,120 @@
+name: CI
+
+# Two jobs, ruled by the operator, 2026-10-05:
+#
+#   gate         the full quality gate on the pinned toolchain (mise.toml),
+#                the same command an agent must have green before it
+#                commits (.claude/wurk.json gate.full).
+#   test-oldest  the suite alone on elixir 1.16 / OTP 25, the pair the former
+#                test.yml ran, so the oldest toolchain this repo has been
+#                proven on stays proven. It runs no quality stage: the gate's
+#                tooling is dev-only and is held to the pinned pair, not to
+#                this one. mix.exs's `elixir:` requirement is not changed by
+#                this file.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    name: Full quality gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Single source of truth for the toolchain: a version duplicated into
+      # this file drifts the first time mise.toml moves. mise itself is not
+      # used to provision CI - it would build Erlang from source.
+      - name: Read the toolchain out of mise.toml
+        id: toolchain
+        run: |
+          set -euo pipefail
+          erlang="$(sed -n 's/^erlang *= *"\(.*\)".*$/\1/p' mise.toml | head -1)"
+          elixir="$(sed -n 's/^elixir *= *"\(.*\)".*$/\1/p' mise.toml | head -1)"
+          test -n "$erlang" || { echo "no erlang version in mise.toml" >&2; exit 1; }
+          test -n "$elixir" || { echo "no elixir version in mise.toml" >&2; exit 1; }
+          echo "erlang=$erlang" >> "$GITHUB_OUTPUT"
+          echo "elixir=$elixir" >> "$GITHUB_OUTPUT"
+
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: ${{ steps.toolchain.outputs.erlang }}
+          elixir-version: ${{ steps.toolchain.outputs.elixir }}
+
+      # Keyed by the toolchain pair and mix.lock. priv/plts is cached with
+      # deps and _build because mix.exs keeps the Dialyzer PLT there rather
+      # than under _build. The restore-keys fallback means a lockfile bump
+      # rebuilds the PLT incrementally from the previous one rather than from
+      # scratch.
+      #
+      # Known tradeoff: a warm _build means the compile stage is incremental,
+      # so warnings_as_errors only sees files this push actually recompiles.
+      # Deleting the cache is how to get a from-scratch compile when one is
+      # wanted.
+      - name: Cache deps and build
+        uses: actions/cache@v4
+        with:
+          path: |
+            deps
+            _build
+            priv/plts
+          key: mix-${{ runner.os }}-otp${{ steps.toolchain.outputs.erlang }}-ex${{ steps.toolchain.outputs.elixir }}-${{ hashFiles('mix.lock') }}
+          restore-keys: |
+            mix-${{ runner.os }}-otp${{ steps.toolchain.outputs.erlang }}-ex${{ steps.toolchain.outputs.elixir }}-
+
+      - name: Fetch dependencies
+        run: mix deps.get
+
+      # The gate is the whole job. It runs every stage .quality.exs lists -
+      # the header of that file is the one stage list, kept there rather
+      # than copied here - printing detail under any failing stage, so a red
+      # run is diagnosable from this log alone.
+      #
+      # The command is read out of .claude/wurk.json rather than written
+      # here, so the gate CI runs and the gate an agent must have green
+      # before committing are one definition with one place to change it. It
+      # is read and executed inside the step rather than interpolated into
+      # `run:`, so a repository file never reaches the shell as expression
+      # text.
+      - name: Full quality gate
+        run: |
+          set -euo pipefail
+          mapfile -t cmd < <(jq -er '.gate.full[]' .claude/wurk.json)
+          test "${#cmd[@]}" -gt 0 || { echo "gate.full is empty" >&2; exit 1; }
+          echo "gate command (.claude/wurk.json gate.full): ${cmd[*]}"
+          "${cmd[@]}"
+
+  test-oldest:
+    name: Tests on elixir 1.16 / OTP 25
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    env:
+      MIX_ENV: test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: "25"
+          elixir-version: "1.16"
+
+      - name: Fetch dependencies
+        run: mix deps.get
+
+      - name: Run tests
+        run: mix test

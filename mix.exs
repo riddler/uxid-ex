@@ -88,6 +88,7 @@ defmodule UXID.MixProject do
         "guides/ecto.md",
         "guides/monotonic.md",
         "guides/deterministic.md",
+        "guides/why-prefix-time-randomness.md",
         "guides/registry.md",
         "guides/configuration.md",
         "CHANGELOG.md",
@@ -103,6 +104,7 @@ defmodule UXID.MixProject do
           "guides/configuration.md"
         ],
         Explanation: [
+          "guides/why-prefix-time-randomness.md",
           "guides/monotonic.md",
           "guides/deterministic.md"
         ]

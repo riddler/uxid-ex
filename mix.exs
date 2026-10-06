@@ -17,7 +17,7 @@ defmodule UXID.MixProject do
     {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
     {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
     {:excoveralls, "~> 0.18.5", only: :test},
-    {:ex_quality, "~> 0.6", only: :dev, runtime: false},
+    {:ex_quality, "~> 0.16", only: :dev, runtime: false},
     {:ex_doc, "~> 0.40", only: :dev},
     {:benchee, "~> 1.0", only: :dev},
     {:benchee_html, "~> 1.0", only: :dev},

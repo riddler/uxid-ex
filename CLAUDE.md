@@ -170,7 +170,9 @@ The rules that do not wait to be looked up:
   `mix quality --profile loop`. Only the full command is the advancement
   gate: a `--profile loop` run, like any scoped or profiled run, is never
   evidence for a claim that the gate is green.
-- `.quality.exs` sets nothing today, so every ex_quality default applies.
+- `.quality.exs` turns on format check, warnings as errors, credo strict
+  and the docs and doc_links stages, and defines the `loop` profile; its
+  header names every stage the full gate runs and the ones it does not.
   Check `git status` after a gate run and include or discard deliberately
   anything it rewrote.
 - `coveralls.json` sets a 65% floor and excludes `test/` and `lib/mix/tasks/`

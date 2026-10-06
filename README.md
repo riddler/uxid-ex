@@ -26,6 +26,8 @@ coordination between nodes. Its size is tunable for low-cardinality resources,
 a monotonic mode keeps a burst within one millisecond unique and ordered, a
 deterministic mode maps the same input to the same ID, and a registry keeps
 every prefix in an app unique and routes an ID back to its resource.
+[Why a UXID has a prefix, a time and randomness][guide_why_url] explains the
+trade-offs behind these properties.
 
 ## Install
 
@@ -80,6 +82,7 @@ end
   - [Configuration][guide_configuration_url]: every `config :uxid` key in one place, with per-call and global precedence.
   - [The changelog][hexdocs_changelog_url]: what changed in each version.
 - Understand
+  - [Why a UXID has a prefix, a time and randomness][guide_why_url]: what each part of an ID is for, and what you trade when you tune it.
   - [Monotonic IDs][guide_monotonic_url]: same-millisecond uniqueness and ordering, the security tradeoff, and when to use it.
   - [Deterministic IDs][guide_deterministic_url]: name-based (UUIDv5-style) IDs, with the prefix as the namespace.
   - [_Designing APIs for humans: object IDs_][stripe_ids_url]: the Stripe ID design many of UXID's choices follow.
@@ -113,6 +116,7 @@ UXID is released under the [MIT License](LICENSE).
 [guide_deterministic_url]: https://hexdocs.pm/uxid/deterministic.html
 [guide_registry_url]: https://hexdocs.pm/uxid/registry.html
 [guide_configuration_url]: https://hexdocs.pm/uxid/configuration.html
+[guide_why_url]: https://hexdocs.pm/uxid/why-prefix-time-randomness.html
 [mit_license_url]: http://opensource.org/licenses/MIT
 [uxid_talk_url]: https://www.youtube.com/watch?v=YIIJClhjxOA
 [stripe_ids_url]: https://dev.to/stripe/designing-apis-for-humans-object-ids-3o5a

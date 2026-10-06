@@ -36,7 +36,7 @@
       "exempt_prefixes": []
     },
     "project_level_skips": [
-      "^opt-in; set (readme|diataxis): \\[enabled: :auto\\] in \\.quality\\.exs$"
+      "^opt-in; set diataxis: \\[enabled: :auto\\] in \\.quality\\.exs$"
     ],
     "not_applicable_skips": [
       "^:doctor not installed$",

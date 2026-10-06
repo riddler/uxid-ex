@@ -15,6 +15,11 @@
 #                                                 ExDoc warning
 #                                   doc_links     fails on the link rules ExDoc
 #                                                 accepts silently
+#                                   readme        fails on any README shape
+#                                                 finding (What, Why, Install,
+#                                                 Basic usage, a grouped
+#                                                 Documentation map, under 250
+#                                                 lines)
 #
 #   mix quality --profile loop  - inner loop while implementing: format,
 #                                 compile, credo and only the tests covering
@@ -24,7 +29,7 @@
 #
 # Agents: prefer `--format json --report -` when you want to route on results.
 #
-# Not run: the readme and diataxis stages stay off; doctor, gettext and
+# Not run: the diataxis stage stays off; doctor, gettext and
 # sobelow are not installed; and the dependency stage's security audit needs
 # mix_audit, which is not installed either.
 
@@ -53,6 +58,14 @@
   ],
   doc_links: [
     enabled: :auto
+  ],
+  # The README stage checks the README keeps the shape of an introduction
+  # and a map (it reads headings, paragraphs and code blocks, never the
+  # prose). At severity :error any finding fails the gate, so the README
+  # cannot drift into a manual one section at a time.
+  readme: [
+    enabled: :auto,
+    severity: :error
   ],
   profiles: [
     loop: [

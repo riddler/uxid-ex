@@ -19,10 +19,10 @@ defmodule MyApp.IDs do
     default_validate: true
 
   defid :org,     prefix: "org",     schema: MyApp.Org,             category: :account
-  defid :contact, prefix: "contact", size: :large, schema: MyApp.CRM.Contact
-  defid :lead,    prefix: "lead"
+  defid :user,    prefix: "usr",     size: :large, schema: MyApp.Accounts.User
+  defid :api_key, prefix: "apikey"
   defid :event,   prefix: "evt",     size: :small, monotonic: true
-  retired "usr" # reserve a prefix so it stays unique-checked, never reused
+  retired "cus" # reserve a prefix so it stays unique-checked, never reused
 end
 ```
 
@@ -73,7 +73,7 @@ shape, so every call site and every schema field has to agree on them.
 ```elixir
 defid :event,   prefix: "evt", size: :small, monotonic: true
 defid :session, prefix: "ses", compact_time: true
-defid :ticket,  prefix: "tkt", rand_size: 4
+defid :item,    prefix: "itm", rand_size: 4
 ```
 
 | Option | Values | Effect |
@@ -119,7 +119,7 @@ natural key, so the same input must always produce the same ID (see the
 [Deterministic IDs guide](deterministic.md)). Mint those by key with `from:`:
 
 ```elixir
-MyApp.IDs.generate!(:export, from: phone)
+MyApp.IDs.generate!(:export, from: external_id)
 # => "exp_z9r3k..."   (stable for this input, forever)
 ```
 
@@ -154,8 +154,8 @@ declaration cannot stop it. Mint in a changeset instead:
 
 def changeset(export, attrs) do
   export
-  |> cast(attrs, [:phone])
-  |> put_change(:id, MyApp.IDs.generate!(:export, from: attrs.phone))
+  |> cast(attrs, [:external_id])
+  |> put_change(:id, MyApp.IDs.generate!(:export, from: attrs.external_id))
 end
 ```
 
@@ -202,14 +202,14 @@ itself under its key with `UXID.Registered`. The reference then points *down*
 # base layer - governance only, no schema: literal
 defmodule MyApp.IDs do
   use UXID.Registry
-  defid :contact, prefix: "contact", route: true   # filled at boot by self-registration
+  defid :user, prefix: "usr", route: true   # filled at boot by self-registration
 end
 
 # upper layer - the schema marks itself
-defmodule MyApp.CRM.Contact do
+defmodule MyApp.Accounts.User do
   use Ecto.Schema
-  use UXID.Registered, key: :contact
-  @primary_key {:id, UXID, [autogenerate: true] ++ MyApp.IDs.field_opts(:contact)}
+  use UXID.Registered, key: :user
+  @primary_key {:id, UXID, [autogenerate: true] ++ MyApp.IDs.field_opts(:user)}
 end
 ```
 
@@ -226,14 +226,14 @@ table into `:persistent_term`, and validates it. Wire it into your top app's
 
 ```elixir
 def start(_type, _args) do
-  MyApp.IDs.verify!(otp_apps: [:my_app])   # or all umbrella apps: [:core, :crm, :web]
+  MyApp.IDs.verify!(otp_apps: [:my_app])   # or all umbrella apps: [:core, :accounts, :web]
   # ... start your supervision tree
 end
 ```
 
 `verify!/1` raises `ArgumentError`, listing every problem, when:
 
-- a marker names a key that isn't registered (a typo like `key: :contct`),
+- a marker names a key that isn't registered (a typo like `key: :uesr`),
 - two modules claim the same key, or
 - a `route: true` key resolves to no schema.
 

@@ -96,5 +96,6 @@ bench/
 # dependency files) matches this directory name and would otherwise hide them.
 !changelog.d/
 
-# Local beads telemetry churn; the tracker syncs via refs/dolt/data.
+# Local beads telemetry churn; the tracker syncs through its own Dolt remote
+# (`sync.remote` in `.beads/config.yaml`), not through this git repository.
 .beads/interactions.jsonl

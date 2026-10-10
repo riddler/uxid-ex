@@ -1,4 +1,4 @@
-# Monotonic IDs
+# Why monotonic mode exists and what it costs
 
 Standard UXIDs draw fresh randomness for every ID, so collision risk within a
 single millisecond is a birthday problem - for small sizes (`:xsmall` has 0
@@ -17,49 +17,23 @@ instead of exactly `+1` means an attacker who sees `...0004` can no longer guess
 `:small`, ~1/10⁶ at `:medium`), while still leaving ample same-ms burst headroom
 before overflow (~512 IDs/ms at `:small`, ~2M at `:medium`).
 
-## Enabling it
+To turn it on per call, per Ecto field, per registry key or globally, see
+[Turn on monotonic generation](tuning.md#turn-on-monotonic-generation).
 
-```elixir
-# Per-call: on for all sizes
-UXID.generate!(size: :small, monotonic: true)
+## Why the small sizes need it most
 
-# Per-size list (alias-aware: :small also matches :s, :medium matches :m, ...)
-UXID.generate!(size: :small, monotonic: [:small, :medium])
-```
+The birthday arithmetic in [Collision resistance](sizes.md#collision-resistance)
+bites hardest at the small sizes. A `:small` body has 16 random bits, so about
+36 IDs minted in one millisecond already reach a 1% chance of a collision.
+Under monotonic mode, same-millisecond IDs from one process are **guaranteed
+distinct** (and strictly ordered) rather than merely unlikely to collide, so
+that budget of about 36 becomes the field's whole range before overflow. That
+is why monotonic mode is the answer when you need a small ID *and* a high
+same-millisecond burst rate, and why it is not free: the next section is what
+it costs.
 
-**Global policy** (overridable per-call/per-field, mirrors `compact_small_times`):
-
-```elixir
-# config/config.exs
-config :uxid, monotonic: true
-# or only for specific sizes:
-config :uxid, monotonic: [:small, :medium]
-```
-
-**In Ecto schemas:**
-
-```elixir
-field :id, UXID, autogenerate: true, prefix: "evt", size: :small, monotonic: true
-```
-
-**On a registry key** - declare it once and both `generate!/2` and `field_opts/1`
-carry it, so no call site or schema field can disagree (see the
-[Prefix Registry guide](registry.md)):
-
-```elixir
-defid :event, prefix: "evt", size: :small, monotonic: true
-
-MyApp.IDs.generate!(:event)                   # monotonic
-MyApp.IDs.generate!(:event, monotonic: false) # one-off opt-out
-```
-
-## Scope of the guarantee
-
-Monotonic and collision-free *within a single BEAM process*. State lives in the
-process dictionary (keyed by prefix and field size) - no GenServer, no ETS, no
-shared state, so it is `async: true` safe. Each process gets an independent
-random starting point per millisecond, so cross-process collisions fall back to a
-birthday probability on the field size.
+The guarantee holds within one BEAM process; its exact scope is stated under
+[`:monotonic`](configuration.md#monotonic) in the Configuration reference.
 
 ## Tradeoff (why it is opt-in)
 
@@ -74,13 +48,5 @@ choice and is never a silent default.
 > Don't use `:small`/`:medium` monotonic IDs as externally-enumerable,
 > security-sensitive identifiers; prefer `:large`/`:xl` (and non-monotonic) there.
 
-## `:xs` / `:xsmall` note
-
-A standard `:xs` has 0 random bits - nothing to increment - so when monotonic is
-active `compact_time` is enabled automatically for `:xs`/`:xsmall`, yielding a
-1-byte (8-bit) counter field. Passing an explicit `compact_time: false` on
-`:xs`/`:xsmall` with monotonic on raises an `ArgumentError` (there would be no
-field to count). This inherits the compact `:xsmall` time-decode ambiguity
-described in the [Sizes & Encoding guide](sizes.md#compact-time) - uniqueness and
-sorting are unaffected, but decoding the timestamp back out of a monotonic `:xs`
-is unreliable.
+`:xs` has no random field to step, so monotonic mode treats it specially; see
+[`:xs` under monotonic generation](sizes.md#xs-under-monotonic-generation).

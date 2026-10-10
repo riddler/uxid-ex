@@ -10,43 +10,10 @@ lookup table: an email, a vendor SKU, a webhook idempotency key, or a natural ke
 during a migration. It makes idempotent upserts trivial (recompute the ID instead
 of querying for it) and gives you stable fixtures and seeds in tests.
 
-## The `from:` API
-
-Passing `from:` switches `generate/1`, `generate!/1`, and `new/1` into
-deterministic mode. Every other option (`prefix:`, `size:`, `case:`,
-`delimiter:`) works unchanged:
-
-```elixir
-UXID.generate!(prefix: "usr", from: "alice@example.com")
-# => "usr_zcvt7epac0t1ebcsjfyf7cwz25"  (stable for this input, forever)
-
-UXID.generate!(prefix: "usr", from: "alice@example.com")  # identical again
-```
-
-The ID is a truncated **SHA-256** of the input. `from:` must be a string; pass a
-non-binary and it raises. For a composite key, stringify it yourself first
-(`"#{tenant}:#{email}"`) so you control the exact bytes that get hashed.
-
-## With a prefix registry
-
-If your app has a [prefix registry](registry.md), mint by key rather than
-restating the prefix and size at the call site:
-
-```elixir
-MyApp.IDs.generate!(:export, from: phone)
-```
-
-That is the preferred call shape for registry users: the prefix and size still
-come from the registry (and cannot be overridden), while `from:` passes through.
-Better still, declare the key as always-derived so a random mint becomes
-impossible:
-
-```elixir
-defid :export, prefix: "exp", deterministic: true
-```
-
-See [Deterministic keys](registry.md#deterministic-keys) for the declaration, the
-`autogenerate` caveat, and how the flag travels in the JSON manifest.
+You switch it on by passing `from:` with the input string; the option is in
+[The `from:` option](deterministic-reference.md#the-from-option). A registry
+key can require it: see [Deterministic keys](registry.md#deterministic-keys)
+in the registry guide.
 
 ## Prefix is the namespace
 
@@ -81,25 +48,8 @@ compact timestamp can no longer start with `z`, which trims the compact horizon
 to ~mid-2038 (standard 48-bit timestamps are unaffected). See the
 [Sizes & Encoding guide](sizes.md#compact-time).
 
-## Size and length
-
-Deterministic bodies reuse the standard (non-compact) lengths, spending the whole
-body - minus the one-character marker - on hash bits:
-
-| Size          | Aliases      | Body length | Hash bits |
-|---------------|--------------|-------------|-----------|
-| `:xs`         | `:xsmall`    | 10 chars    | 45        |
-| `:s`          | `:small`     | 14 chars    | 65        |
-| `:m`          | `:medium`    | 18 chars    | 85        |
-| `:l`          | `:large`     | 22 chars    | 105       |
-| `:xl`         | `:xlarge`    | 26 chars    | 125       |
-
-With no `:size`, generation defaults to `:xl` (125 hash bits). A deterministic ID
-carries *more* distinguishing bits than the random UXID of the same size, since it
-does not spend characters on a timestamp. Changing `size` changes the ID: the
-same input at two sizes yields unrelated bodies, not one a truncated prefix of the
-other. Case is a display concern applied at encode time - upper and lower are the
-same ID, exactly as for random UXIDs.
+The body length and hash width at each size are in
+[Size and length](deterministic-reference.md#size-and-length).
 
 ## Properties, honestly
 
@@ -119,31 +69,5 @@ same ID, exactly as for random UXIDs.
 > If you need an identifier an attacker cannot guess, use a random UXID (`:large`
 > or `:xl`), not a deterministic one. `from:` is for stability, not secrecy.
 
-## With Ecto
-
-Ecto `autogenerate` is intentionally **not** wired for `from:` - there is no
-per-row input available at autogenerate time. Mint the ID explicitly in
-application code (typically a changeset) and store it as an ordinary string:
-
-```elixir
-def changeset(user, attrs) do
-  user
-  |> cast(attrs, [:email])
-  |> validate_required([:email])
-  |> put_deterministic_id()
-end
-
-defp put_deterministic_id(%{valid?: true, changes: %{email: email}} = changeset) do
-  put_change(changeset, :id, UXID.generate!(prefix: "usr", from: email))
-end
-
-defp put_deterministic_id(changeset), do: changeset
-```
-
-The field itself is a normal `UXID` (or `:string`) column - casting and querying
-are unchanged; you are just supplying the value instead of letting the datastore
-or `autogenerate` mint a random one.
-
-Note the corollary for registry users: a `deterministic: true` key must **not** be
-wired with `autogenerate: true`, because the declaration cannot reach Ecto's
-autogenerate path and a random ID would be minted there silently.
+Minting one into an Ecto field, which `autogenerate` cannot do, is in
+[Minting a deterministic ID in a changeset](ecto.md#minting-a-deterministic-id-in-a-changeset).

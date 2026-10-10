@@ -66,8 +66,9 @@ UXID.generate!(size: :large, compact_time: true)  # opt in for a size the policy
 
 Global monotonic policy. Accepts `true` (all sizes), `false`, or a list of sizes
 (alias-aware - `[:small]` matches both `:small` and `:s`). Override per call or
-per field with `monotonic:`. See the [Monotonic IDs guide](monotonic.md) for the
-guarantee and its security tradeoff.
+per field with `monotonic:`. See
+[Why monotonic mode exists and what it costs](monotonic.md) for what it is for
+and its security tradeoff.
 
 ```elixir
 # config/config.exs
@@ -76,3 +77,11 @@ config :uxid, monotonic: [:small, :medium]
 UXID.generate!(size: :small)                  # monotonic (matches policy)
 UXID.generate!(size: :small, monotonic: false) # opt out for this call
 ```
+
+### Scope of the guarantee
+
+Monotonic and collision-free *within a single BEAM process*. State lives in the
+process dictionary (keyed by prefix and field size) - no GenServer, no ETS, no
+shared state, so it is `async: true` safe. Each process gets an independent
+random starting point per millisecond, so cross-process collisions fall back to a
+birthday probability on the field size.

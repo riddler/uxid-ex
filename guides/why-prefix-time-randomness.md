@@ -22,6 +22,12 @@ exactly this, and it is why the registry insists that every prefix in an app
 is unique. Two resources sharing a prefix would make the ID lie about what it
 names.
 
+A hand-rolled CI test is a weak place to keep that rule, and the prefix's
+format with it, so `UXID.Registry` makes both the compiler's job. It also
+turns the same declarations into a runtime routing table (prefix to schema) for the ID-driven patterns Adam
+Kirk describes in his ElixirConf US 2025 talk, [_UXIDs in Elixir/Ecto_][uxid_talk_url]:
+authorization and IDOR checks, admin auto-linking, and Relay global IDs.
+
 The prefix is joined to the body by a delimiter that can never appear in the
 body, so the split is unambiguous without consulting anything. The default is
 an underscore rather than a hyphen because a double-click selects a word, and
@@ -110,3 +116,6 @@ The body is written in Crockford Base32, lowercase by default, for the same reas
 prefix exists: an ID is something people handle. The alphabet leaves out
 letters that are easily confused with digits, so an ID read over the phone or
 copied by hand comes back the way it was sent.
+
+<!-- LINKS -->
+[uxid_talk_url]: https://www.youtube.com/watch?v=YIIJClhjxOA

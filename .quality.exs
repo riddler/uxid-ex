@@ -9,8 +9,11 @@
 #                                                 of the locked versions (it
 #                                                 fetches the advisory
 #                                                 database over the network)
-#                                   credo         --strict, credo's own defaults
-#                                                 (there is no .credo.exs)
+#                                   credo         --strict, configured by the
+#                                                 tracked .credo.exs: credo's
+#                                                 generated config with one
+#                                                 change, zero-arity defs must
+#                                                 carry parentheses
 #                                   tests         the whole suite with coverage,
 #                                                 held to coveralls.json's
 #                                                 minimum_coverage

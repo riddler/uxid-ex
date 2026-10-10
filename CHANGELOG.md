@@ -1,5 +1,18 @@
 # Changelog
 
+## 2.9.3 / 2026-10-09
+
+The library's code is unchanged: no function, option or return value differs from 2.9.2. This release ships documentation and quality tooling.
+
+### Changed
+
+- Adds a how-to page, How to tune ID generation: turning on monotonic generation per call, per field, per registry key or globally, and setting a size floor for test suites
+- Adds a Registry reference page: the functions a registry module defines, the options a key accepts, and the routing-table lookups
+- Adds a Deterministic IDs reference page: the `from:` option and the body length and hash width at each size
+- Retitles the monotonic page as an explanation, "Why monotonic mode exists and what it costs", and moves sections that mixed kinds onto pages of their kind, leaving a link where each was: the deterministic changeset recipe to the Ecto guide, the monotonic scope to the Configuration guide, the `:xs` monotonic note to Sizes & Encoding, and the registry's motivation to the why-prefix page
+- Uses domain-free example names in the registry guide
+- Development only, nothing a user installs changes: the quality gate now audits the locked dependencies with `mix_audit` (dev and test), and the repository's own lock moves `decimal` to 3.1.1, `ecto` to 3.14.2 and `telemetry` to 1.4.2; no package requirement changes
+
 ## 2.9.2 / 2026-10-05
 
 The library's code is unchanged: no function, option or return value differs from 2.9.1. This release ships documentation, quality tooling and the CI and release workflows.

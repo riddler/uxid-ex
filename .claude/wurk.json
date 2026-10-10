@@ -28,7 +28,7 @@
     "loop": ["mix", "quality", "--profile", "loop"],
     "report": ["mix", "quality", "--report", "-"],
     "build_paths": ["lib/", "test/", "config/", "mix.exs", "mix.lock"],
-    "also_gated_paths": [".quality.exs", "coveralls.json"],
+    "also_gated_paths": [".quality.exs", "coveralls.json", ".formatter.exs", "mix.exs", "mix.lock"],
     "moving_files": [".quality.exs", "coveralls.json"],
     "sabotage": {
       "test_roots": ["test/"],

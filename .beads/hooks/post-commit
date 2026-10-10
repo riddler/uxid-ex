@@ -10,8 +10,12 @@
 # installs its own post-commit (husky, lefthook, overcommit) would silently stop
 # running it. Chain to the repo's own hook afterwards to keep that working.
 #
-# Must never fail a commit: swallow everything.
-"$HOME/dotfiles/bin/journal" capture-commit >/dev/null 2>&1 || true
+# Must never fail a commit: swallow everything. The journal script is only on
+# machines that have it; everywhere else this step is skipped.
+journal="$HOME/dotfiles/bin/journal"
+if [ -x "$journal" ]; then
+  "$journal" capture-commit >/dev/null 2>&1 || true
+fi
 
 # Note: `git rev-parse --git-path hooks/post-commit` honours core.hooksPath and
 # so resolves back to *this* file - it can't be used to find the repo's own

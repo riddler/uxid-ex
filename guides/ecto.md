@@ -70,6 +70,34 @@ while new rows get UXIDs. Once a table holds only UXIDs, turn it off with
 field :id, UXID, prefix: "org", validate: true, allow_uuid: false
 ```
 
+## Minting a deterministic ID in a changeset
+
+Ecto `autogenerate` is intentionally **not** wired for `from:` - there is no
+per-row input available at autogenerate time. To give a row a
+[deterministic ID](deterministic.md), mint it explicitly in application code
+(typically a changeset) and store it as an ordinary string:
+
+```elixir
+def changeset(user, attrs) do
+  user
+  |> cast(attrs, [:email])
+  |> validate_required([:email])
+  |> put_deterministic_id()
+end
+
+defp put_deterministic_id(%{valid?: true, changes: %{email: email}} = changeset) do
+  put_change(changeset, :id, UXID.generate!(prefix: "usr", from: email))
+end
+
+defp put_deterministic_id(changeset), do: changeset
+```
+
+The field itself is a normal `UXID` (or `:string`) column - casting and querying
+are unchanged; you are just supplying the value instead of letting the datastore
+or `autogenerate` mint a random one. For a registry key declared
+`deterministic: true`, the same rule applies to its field: see
+[Deterministic keys](registry.md#deterministic-keys).
+
 ## Validating a string without Ecto
 
 `UXID.valid?/2` checks a string's *structure* (prefix + Crockford Base32 body),
@@ -84,4 +112,5 @@ UXID.valid?("not-a-uxid")                                     # => false
 It validates structure, not authenticity, and deliberately does **not** accept
 bare UUIDs - that coexistence lives only in `cast/2`. To centralize the
 `prefix`/`size`/`validate`/`allow_uuid` options for a field so they live in one
-place, see the [Prefix Registry guide](registry.md) and its `field_opts/1` hook.
+place, see the [Prefix Registry guide](registry.md) and the `field_opts/1` hook
+in the [Registry reference](registry-reference.md).

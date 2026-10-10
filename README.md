@@ -76,14 +76,17 @@ end
 - Do
   - [How to use UXIDs in Ecto schemas][guide_ecto_url]: primary and foreign keys, strict `validate:` casting, `allow_uuid` coexistence, `UXID.valid?/2`, and migrating a `uuid` column.
   - [How to govern prefixes with a registry][guide_registry_url]: the compile-time DSL that keeps every prefix unique, routes an ID back to its schema, works in layered and umbrella apps, and exports a JSON manifest.
+  - [How to tune ID generation][guide_tuning_url]: turn on monotonic generation per call, per field, per registry key or globally, and set a size floor for test suites.
 - Look up
   - [The API reference][hexdocs_api_url]: every public module and function.
   - [Sizes & Encoding][guide_sizes_url]: the t-shirt sizes, how much randomness each carries, and compact-time mode.
   - [Configuration][guide_configuration_url]: every `config :uxid` key in one place, with per-call and global precedence.
+  - [Registry reference][guide_registry_reference_url]: the functions a registry module defines, the options a key accepts, and the routing-table lookups.
+  - [Deterministic IDs reference][guide_deterministic_reference_url]: the `from:` option and the body length and hash width at each size.
   - [The changelog][hexdocs_changelog_url]: what changed in each version.
 - Understand
   - [Why a UXID has a prefix, a time and randomness][guide_why_url]: what each part of an ID is for, and what you trade when you tune it.
-  - [Monotonic IDs][guide_monotonic_url]: same-millisecond uniqueness and ordering, the security tradeoff, and when to use it.
+  - [Why monotonic mode exists and what it costs][guide_monotonic_url]: same-millisecond uniqueness and ordering, why the small sizes need it, and the security tradeoff.
   - [Deterministic IDs][guide_deterministic_url]: name-based (UUIDv5-style) IDs, with the prefix as the namespace.
   - [_Designing APIs for humans: object IDs_][stripe_ids_url]: the Stripe ID design many of UXID's choices follow.
   - [_UXIDs in Elixir/Ecto_][uxid_talk_url]: Adam Kirk's ElixirConf US 2025 talk, the source of the registry and routing patterns.
@@ -117,6 +120,9 @@ UXID is released under the [MIT License](LICENSE).
 [guide_registry_url]: https://hexdocs.pm/uxid/registry.html
 [guide_configuration_url]: https://hexdocs.pm/uxid/configuration.html
 [guide_why_url]: https://hexdocs.pm/uxid/why-prefix-time-randomness.html
+[guide_tuning_url]: https://hexdocs.pm/uxid/tuning.html
+[guide_registry_reference_url]: https://hexdocs.pm/uxid/registry-reference.html
+[guide_deterministic_reference_url]: https://hexdocs.pm/uxid/deterministic-reference.html
 [mit_license_url]: http://opensource.org/licenses/MIT
 [uxid_talk_url]: https://www.youtube.com/watch?v=YIIJClhjxOA
 [stripe_ids_url]: https://dev.to/stripe/designing-apis-for-humans-object-ids-3o5a

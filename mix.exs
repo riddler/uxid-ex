@@ -89,8 +89,11 @@ defmodule UXID.MixProject do
         "guides/ecto.md",
         "guides/monotonic.md",
         "guides/deterministic.md",
+        "guides/deterministic-reference.md",
         "guides/why-prefix-time-randomness.md",
         "guides/registry.md",
+        "guides/registry-reference.md",
+        "guides/tuning.md",
         "guides/configuration.md",
         "CHANGELOG.md",
         "LICENSE"
@@ -98,11 +101,14 @@ defmodule UXID.MixProject do
       groups_for_extras: [
         "How-to guides": [
           "guides/ecto.md",
-          "guides/registry.md"
+          "guides/registry.md",
+          "guides/tuning.md"
         ],
         Reference: [
           "guides/sizes.md",
-          "guides/configuration.md"
+          "guides/configuration.md",
+          "guides/registry-reference.md",
+          "guides/deterministic-reference.md"
         ],
         Explanation: [
           "guides/why-prefix-time-randomness.md",

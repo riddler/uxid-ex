@@ -30,6 +30,17 @@ UXID.generate!(prefix: "cus", size: :xl)      # "cus_01kxr2jnqndq7qx9wrvhmrzrhw"
 the whole body (minus the one-character `z`/`Z` marker) on hash bits instead of a
 timestamp plus randomness - so a deterministic `:m` body is 85 hash bits, not 40.
 
+### `:xs` under monotonic generation
+
+A standard `:xs` has 0 random bits - nothing to increment - so when
+[monotonic generation](monotonic.md) is active `compact_time` is enabled
+automatically for `:xs`/`:xsmall`, yielding a 1-byte (8-bit) counter field.
+Passing an explicit `compact_time: false` on `:xs`/`:xsmall` with monotonic on
+raises an `ArgumentError` (there would be no field to count). This inherits the
+compact `:xsmall` time-decode ambiguity described under
+[Compact time](#compact-time) - uniqueness and sorting are unaffected, but
+decoding the timestamp back out of a monotonic `:xs` is unreliable.
+
 ## Collision resistance
 
 Two UXIDs can only collide if they share the **same millisecond timestamp** *and*
@@ -63,17 +74,8 @@ space, so the birthday math spans all of them together.
 > `:xs` carries **no** randomness (timestamp only), so it is only safe for
 > genuinely singleton or externally-keyed resources.
 
-### Monotonic mode makes small sizes burst-safe
-
-If you need a small ID *and* a high same-millisecond burst rate, enable
-[monotonic mode](monotonic.md). Instead of drawing fresh randomness for every ID
-(the birthday problem above), it seeds the random field once per millisecond and
-then advances it by a random positive step for each subsequent ID - so
-same-millisecond IDs from one process are **guaranteed distinct** (and strictly
-ordered) rather than merely unlikely to collide. That turns the `~36`
-same-ms budget at `:small` into the full field range before overflow (~512 IDs/ms
-at `:small`, ~2M at `:medium`). It has a security tradeoff and is process-local -
-see the [Monotonic IDs guide](monotonic.md) for the full picture.
+To make a small size burst-safe within one process, see
+[Why the small sizes need it most](monotonic.md#why-the-small-sizes-need-it-most).
 
 ## Compact time
 
@@ -97,18 +99,8 @@ resources that need better collision resistance without growing longer. Enable i
 per call (`compact_time: true`), per Ecto field, or globally for small sizes -
 see the [Configuration guide](configuration.md).
 
-## Enforcing a minimum size
-
-In test environments, code that requests `:small` (or smaller) can generate
-enough IDs to hit duplicate-key violations. The `:min_size` config upgrades any
-requested size below the floor, without touching larger ones:
-
-```elixir
-# config/test.exs
-config :uxid, min_size: :medium
-```
-
-See the [Configuration guide](configuration.md#min_size) for details.
+To raise every small size to a floor in a test suite, see
+[Enforce a minimum size in tests](tuning.md#enforce-a-minimum-size-in-tests).
 
 <!-- LINKS -->
 [crockford_url]: https://www.crockford.com/base32.html

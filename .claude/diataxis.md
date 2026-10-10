@@ -19,8 +19,8 @@ docs_root: docs
 quadrants:
   tutorials: docs/tutorials
   how_to: guides
-  reference: docs/reference
-  explanation: docs/explanation
+  reference: guides
+  explanation: guides
 readme: README.md
 reference_generator: ex_doc
 publish: hexdocs

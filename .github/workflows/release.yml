@@ -10,10 +10,12 @@ name: Release
 # tab.
 #
 # This file records the publish decision for this repository, which keeps no
-# decision records (CLAUDE.md, "Release preps"; ruled by the operator,
-# 2026-10-05). This workflow is the only publisher: it publishes on the push
-# of the tag that names a merged release prep. An agent or a session never
-# runs `mix hex.publish`, a docs republish included, and a failed run is
+# decision records (CLAUDE.md, "Agent authority in this repo", the paragraph
+# after "Release preps" that opens "This repository keeps no decision
+# records" and says where a release decision is recorded; ruled by the
+# operator, 2026-10-05). This workflow is the only publisher: it publishes on
+# the push of the tag that names a merged release prep. An agent or a session
+# never runs `mix hex.publish`, a docs republish included, and a failed run is
 # re-run from its Actions page, never worked round by a local publish.
 
 on:

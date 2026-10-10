@@ -18,6 +18,7 @@ defmodule UXID.MixProject do
     {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
     {:excoveralls, "~> 0.18.5", only: :test},
     {:ex_quality, "~> 0.16", only: :dev, runtime: false},
+    {:mix_audit, "~> 2.1", only: [:dev, :test], runtime: false},
     {:ex_doc, "~> 0.40", only: :dev},
     {:benchee, "~> 1.0", only: :dev},
     {:benchee_html, "~> 1.0", only: :dev},

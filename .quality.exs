@@ -4,7 +4,11 @@
 #                                 stages it runs:
 #                                   format        mix format --check-formatted
 #                                   compile       dev + test, warnings as errors
-#                                   dependencies  no unused dependencies
+#                                   dependencies  no unused dependencies, and
+#                                                 mix_audit's security audit
+#                                                 of the locked versions (it
+#                                                 fetches the advisory
+#                                                 database over the network)
 #                                   credo         --strict, credo's own defaults
 #                                                 (there is no .credo.exs)
 #                                   tests         the whole suite with coverage,
@@ -29,9 +33,8 @@
 #
 # Agents: prefer `--format json --report -` when you want to route on results.
 #
-# Not run: the diataxis stage stays off; doctor, gettext and
-# sobelow are not installed; and the dependency stage's security audit needs
-# mix_audit, which is not installed either.
+# Not run: the diataxis stage stays off; and doctor, gettext and sobelow are
+# not installed.
 
 [
   format: [

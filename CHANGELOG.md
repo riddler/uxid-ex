@@ -1,5 +1,23 @@
 # Changelog
 
+## 2.10.0 / 2026-10-18
+
+This release adds a `rand:` option, changes what three calls answer (an empty prefix, compact xlarge ids, and `UXID.decode/1` on a malformed id), and adds a normative wire-format reference page. The repository now also keeps a language-neutral conformance corpus generated from the library, for other implementations to vendor at a release tag; the corpus is not part of the package.
+
+### Added
+
+- A `rand:` option on `UXID.generate/1`, `UXID.generate!/1` and `UXID.new/1` fixes the random field to the given bytes, so a fixed time and a fixed `rand:` build a reproducible id for test vectors; it raises `ArgumentError` when its width does not match the random field, with `from:`, and under monotonic generation, and is never a source of randomness in production.
+
+### Changed
+
+- An empty prefix (`prefix: ""`) now produces an unprefixed id where it used to produce one with a leading delimiter, and `UXID.valid?/2`, `UXID.deterministic?/2` and the Ecto type read an empty prefix as no prefix.
+- `UXID.decode/1` answers `{:error, reason}` on a malformed id, with the reason `:empty`, `:invalid_length` or `:invalid_character`, where it raised or answered `{:ok, codec}` with an unknown size or an unchecked body; deterministic bodies follow the same rule.
+- Development only, nothing a user installs changes: the repository's own lock moves `decimal` to 3.2.0; no package requirement changes
+
+### Fixed
+
+- Compact xlarge ids (`size: :xl, compact_time: true`) now generate, carrying 10 random bytes (they asked for 11, which the encoder could not produce, and raised), and an explicit `rand_size` above 10 raises an `ArgumentError` naming the 10-byte cap.
+
 ## 2.9.3 / 2026-10-09
 
 The library's code is unchanged: no function, option or return value differs from 2.9.2. This release ships documentation and quality tooling.

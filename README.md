@@ -36,7 +36,7 @@ Add `uxid` to your dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:uxid, "~> 2.9"}
+    {:uxid, "~> 2.10"}
   ]
 end
 ```

@@ -64,6 +64,9 @@ defmodule UXID do
   @doc """
   Returns an encoded UXID string along with response status.
 
+  An empty `prefix: ""` is the same as no prefix: the ID is the bare body, with
+  no leading delimiter.
+
   ## Deterministic (name-based) IDs
 
   Passing `from:` switches to deterministic mode: the same input string always
@@ -109,7 +112,7 @@ defmodule UXID do
   """
   def new(opts \\ []) do
     case = Keyword.get(opts, :case, encode_case())
-    prefix = Keyword.get(opts, :prefix)
+    prefix = normalize_prefix(Keyword.get(opts, :prefix))
     rand_size = Keyword.get(opts, :rand_size)
     size = Keyword.get(opts, :size)
     delimiter = Keyword.get(opts, :delimiter)
@@ -213,7 +216,7 @@ defmodule UXID do
   ## Options
 
     * `:prefix` - when present, the value must carry exactly this prefix. When
-      omitted, any prefix (or none) is accepted.
+      omitted, or given as an empty string, any prefix (or none) is accepted.
     * `:delimiter` - the prefix delimiter (defaults to the configured
       delimiter, see `default_delimiter/0`).
 
@@ -237,7 +240,7 @@ defmodule UXID do
     delimiter = Keyword.get(opts, :delimiter, default_delimiter())
     {prefix, body} = split_prefix(term, delimiter)
 
-    body_valid?(body) and prefix_ok?(prefix, Keyword.get(opts, :prefix))
+    body_valid?(body) and prefix_ok?(prefix, normalize_prefix(Keyword.get(opts, :prefix)))
   end
 
   def valid?(_term, _opts), do: false
@@ -283,6 +286,12 @@ defmodule UXID do
   defp body_valid?(body) do
     String.length(body) >= @min_body_length and Regex.match?(@crockford_body, body)
   end
+
+  # An empty prefix and an absent prefix are the same: no prefix. Normalising
+  # at option entry means every reader below sees nil for both, so `prefix: ""`
+  # never emits a leading delimiter and shares the monotonic counter with nil.
+  defp normalize_prefix(""), do: nil
+  defp normalize_prefix(prefix), do: prefix
 
   defp prefix_ok?(_actual, nil), do: true
   defp prefix_ok?(actual, expected), do: actual == expected

@@ -285,4 +285,69 @@ defmodule UXID.EncoderTest do
       end
     end
   end
+
+  describe "compact sizes round-trip through the decoder" do
+    # Compact :xs and :m have the same body length as standard :xsmall and
+    # :medium, so the decoder reads them as standard by design.
+    for {size, body_len, decoded_size, decoded_compact} <- [
+          {:xs, 10, :xsmall, false},
+          {:s, 13, :small, true},
+          {:m, 18, :medium, false},
+          {:l, 21, :large, true},
+          {:xl, 24, :xlarge, true}
+        ] do
+      # Sabotage: compact :l clauses give 7 bytes -> a 22 char body decoding as standard.
+      test "compact #{size} has a #{body_len} char body decoding as #{decoded_size}" do
+        id = UXID.generate!(size: unquote(size), compact_time: true, prefix: "usr")
+        {:ok, decoded} = UXID.decode(id)
+
+        assert %Codec{
+                 size: unquote(decoded_size),
+                 compact_time: unquote(decoded_compact),
+                 encoded: encoded
+               } = decoded
+
+        assert String.length(encoded) == unquote(body_len)
+      end
+    end
+  end
+
+  describe "compact xlarge and the random field cap" do
+    # Sabotage: compact xl clauses give 9 bytes -> the body is 23 chars.
+    test "compact xlarge generates with 8 time chars and 16 random chars" do
+      id = UXID.generate!(size: :xl, compact_time: true, prefix: "usr")
+      {:ok, %Codec{encoded: encoded}} = UXID.decode(id)
+
+      assert String.length(encoded) == 24
+    end
+
+    # Sabotage: guard compares with @max_rand_size + 1 -> 11 raises without naming the cap.
+    test "an explicit rand_size above 10 raises naming the cap" do
+      assert_raise ArgumentError, ~r/at most 10 bytes/, fn ->
+        UXID.generate!(prefix: "usr", rand_size: 11)
+      end
+
+      assert_raise ArgumentError, ~r/at most 10 bytes.*got: 11/, fn ->
+        UXID.generate!(prefix: "usr", rand_size: 11, monotonic: true)
+      end
+
+      assert_raise ArgumentError, ~r/at most 10 bytes/, fn ->
+        UXID.generate!(prefix: "usr", rand_size: 11, compact_time: true)
+      end
+    end
+
+    # Sabotage: guard compares with >= instead of > -> rand_size: 10 is refused.
+    test "an explicit rand_size of 10 still works" do
+      for opts <- [[rand_size: 10], [rand_size: 10, monotonic: true]] do
+        result =
+          try do
+            UXID.generate!([prefix: "usr"] ++ opts)
+          rescue
+            error in ArgumentError -> error
+          end
+
+        assert is_binary(result)
+      end
+    end
+  end
 end

@@ -7,7 +7,8 @@ defmodule UXID.Decoder do
   alias UXID.Codec
 
   # Encoded body length -> {size, compact_time?}. Compact mode produces bodies
-  # one character shorter than standard for small/large/xlarge.
+  # one character shorter than standard for small/large, and two shorter for
+  # xlarge (24 vs 26).
   @size_by_length %{
     10 => {:xsmall, false},
     13 => {:small, true},
@@ -15,7 +16,7 @@ defmodule UXID.Decoder do
     18 => {:medium, false},
     21 => {:large, true},
     22 => {:large, false},
-    25 => {:xlarge, true},
+    24 => {:xlarge, true},
     26 => {:xlarge, false}
   }
 

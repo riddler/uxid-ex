@@ -90,6 +90,7 @@ defmodule UXID.MixProject do
         "guides/monotonic.md",
         "guides/deterministic.md",
         "guides/deterministic-reference.md",
+        "guides/wire-format.md",
         "guides/why-prefix-time-randomness.md",
         "guides/registry.md",
         "guides/registry-reference.md",
@@ -108,7 +109,8 @@ defmodule UXID.MixProject do
           "guides/sizes.md",
           "guides/configuration.md",
           "guides/registry-reference.md",
-          "guides/deterministic-reference.md"
+          "guides/deterministic-reference.md",
+          "guides/wire-format.md"
         ],
         Explanation: [
           "guides/why-prefix-time-randomness.md",

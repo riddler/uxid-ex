@@ -28,7 +28,14 @@ defmodule UXID do
   Deterministic IDs guide for the full picture.
   """
 
-  @typedoc "Options for generating a UXID"
+  @typedoc """
+  Options for generating a UXID
+
+  `:rand` fixes the random field to the given bytes, for reproducible IDs such
+  as test vectors and the conformance corpus. It is never a source of
+  randomness in production: an ID built from a fixed `rand` is exactly as
+  guessable as those bytes. See `generate/1`.
+  """
   @type option ::
           {:case, atom()}
           | {:time, integer()}
@@ -39,6 +46,7 @@ defmodule UXID do
           | {:compact_time, boolean() | nil}
           | {:monotonic, boolean() | [atom()] | nil}
           | {:from, String.t() | nil}
+          | {:rand, binary() | nil}
 
   @type options :: [option()]
 
@@ -85,6 +93,25 @@ defmodule UXID do
       {:ok, id} = UXID.generate(prefix: "usr", from: "alice@example.com")
       # {:ok, "usr_z..."} - identical for this input on every call
 
+  ## Reproducible IDs
+
+  Passing `rand:` (a binary) fills the random field with those bytes verbatim,
+  so a fixed `time:` and a fixed `rand:` always build the same ID. It exists for
+  reproducible vectors, such as the conformance corpus and tests, and is never
+  a source of randomness in production: the ID is exactly as guessable as the
+  bytes you pass.
+
+  The byte size of `rand:` must equal the random field's width for the call
+  (the size's `rand_size`, or an explicit `rand_size`), or the call raises
+  `ArgumentError`; size `:xs` without compact time has no random field, so only
+  `rand: <<>>` fits it. `rand:` also raises with `from:`, and whenever monotonic
+  generation applies to the call (`monotonic: true`, a size list that contains
+  the call's size, or the global `:monotonic` setting), since both fill the
+  random field themselves. `rand: nil` is the same as leaving it out.
+
+      iex> UXID.generate(prefix: "usr", time: 1_700_000_000_000, rand: <<0, 1, 2, 3, 4, 5, 6, 7, 8, 9>>)
+      {:ok, "usr_01hf7yat00000g40r40m30e209"}
+
   """
   def generate(opts \\ []) do
     {:ok, %Codec{string: string}} = new(opts)
@@ -103,6 +130,9 @@ defmodule UXID do
       UXID.generate!(prefix: "usr", from: "alice@example.com")
       # => "usr_z..." (stable for this input, forever)
 
+  Passing `rand:` fixes the random field for a reproducible ID (test vectors
+  only, never production randomness); see `generate/1`.
+
   """
   def generate!(opts \\ []) do
     {:ok, uxid} = generate(opts)
@@ -112,6 +142,8 @@ defmodule UXID do
   @spec new(opts :: options()) :: {:ok, Codec.t()}
   @doc """
   Returns a new UXID.Codec struct. This is useful for development.
+
+  Takes the same options as `generate/1`, `rand:` included.
   """
   def new(opts \\ []) do
     case = Keyword.get(opts, :case, encode_case())
@@ -123,6 +155,7 @@ defmodule UXID do
     monotonic = Keyword.get(opts, :monotonic)
     timestamp = Keyword.get(opts, :time, System.system_time(:millisecond))
     from = validate_from(Keyword.get(opts, :from))
+    rand = Keyword.get(opts, :rand)
 
     %Codec{
       case: case,
@@ -135,8 +168,44 @@ defmodule UXID do
       time: timestamp,
       delimiter: delimiter
     }
+    |> put_rand(rand)
     |> Encoder.process()
   end
+
+  # rand: fixes the random field. The effective width and monotonic setting are
+  # only known once the encoder has resolved the size, so resolve first (the
+  # encoder's later pass over a resolved codec changes nothing) and check the
+  # caller's bytes against them. A call without rand: never takes this path.
+  defp put_rand(codec, nil), do: codec
+
+  defp put_rand(%Codec{from: from}, _rand) when is_binary(from),
+    do:
+      raise(
+        ArgumentError,
+        "rand: and from: are mutually exclusive - a deterministic ID has no random field"
+      )
+
+  defp put_rand(codec, rand) when is_binary(rand) do
+    resolved = Encoder.resolve(codec)
+
+    cond do
+      resolved.monotonic == true ->
+        raise ArgumentError,
+              "rand: cannot be used with monotonic generation - monotonic mode fills " <>
+                "the random field itself"
+
+      byte_size(rand) != resolved.rand_size ->
+        raise ArgumentError,
+              "rand: must be exactly #{resolved.rand_size} bytes for this call " <>
+                "(the random field's width), got: #{byte_size(rand)}"
+
+      true ->
+        %{resolved | rand: rand}
+    end
+  end
+
+  defp put_rand(_codec, other),
+    do: raise(ArgumentError, "rand: must be a binary, got: #{inspect(other)}")
 
   # from: switches on deterministic mode and must be a binary. Stringify your own
   # composite keys before passing them; a non-binary is a caller error, so raise a

@@ -27,12 +27,20 @@
 #                                                 Basic usage, a grouped
 #                                                 Documentation map, under 250
 #                                                 lines)
+#                                   corpus        a custom stage: mix
+#                                                 uxid.corpus --check rebuilds
+#                                                 the conformance corpus in
+#                                                 memory and fails on any byte
+#                                                 difference from conformance/
+#                                                 (a hand edit, a stale hash,
+#                                                 or a library change not
+#                                                 regenerated)
 #
 #   mix quality --profile loop  - inner loop while implementing: format,
 #                                 compile, credo and only the tests covering
 #                                 changed code, without coverage. Use between
 #                                 edits; it is never evidence that the gate
-#                                 is green.
+#                                 is green. It does not run the corpus stage.
 #
 # Agents: prefer `--format json --report -` when you want to route on results.
 #
@@ -72,6 +80,20 @@
   readme: [
     enabled: :auto,
     severity: :error
+  ],
+  # The conformance corpus (conformance/README.md) is generated from the
+  # library and never edited by hand; this stage is what holds it to that.
+  # It reads only: the Compile stage has already built dev, and --check
+  # writes nothing.
+  custom: [
+    [
+      key: :corpus,
+      name: "Corpus",
+      command: "mix",
+      args: ["uxid.corpus", "--check"],
+      kind: :reader,
+      parse: :none
+    ]
   ],
   profiles: [
     loop: [

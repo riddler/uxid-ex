@@ -58,7 +58,7 @@ defmodule UXIDTest do
 
     # Sabotage: the length rule skipped (every length passes) -> "01G2B5M42HW"
     # answers {:ok, _} with an unknown size.
-    test "a body length outside the size table answers :invalid_length" do
+    test "a body length outside the length table answers :invalid_length" do
       for body <- [
             "01G2B5M42HW",
             "01G2B5M42",
@@ -89,6 +89,19 @@ defmodule UXIDTest do
     test "a body with a byte that is not valid UTF-8 answers :invalid_character" do
       body = "01G2B5M42H" <> <<255>> <> "Y45WE5YQE3P2CJ2"
       assert {:error, :invalid_character} = UXID.decode(body)
+    end
+
+    # Sabotage: the length rule counts String.length/1 (characters) instead of
+    # bytes -> 14 two-byte characters pass as a 14-character body and answer
+    # :invalid_character, and one two-byte character among 24 ASCII ones fails
+    # as 25 characters and answers :invalid_length.
+    test "the body length is counted in bytes, so a non-ASCII body's reason is fixed" do
+      # 14 characters, 28 bytes: 28 is not in the length table.
+      assert {:error, :invalid_length} = UXID.decode("usr_" <> String.duplicate("é", 14))
+      # 25 characters, 26 bytes: 26 is in the length table, so the character
+      # rule refuses it.
+      assert {:error, :invalid_character} =
+               UXID.decode("usr_é" <> String.duplicate("0", 24))
     end
 
     # Sabotage: the character rule skipped for a body starting with the marker ->

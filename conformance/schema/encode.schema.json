@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "encode.schema.json",
+  "title": "UXID conformance case: encode",
+  "description": "One line of encode.json: the inputs of a time-based id and the id a producer emits for them. The delimiter is `_`.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "input", "expected"],
+  "properties": {
+    "id": {
+      "description": "Stable case id, `encode/` and a slug.",
+      "type": "string",
+      "pattern": "^encode/[a-z0-9][a-z0-9-]*$"
+    },
+    "input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["prefix", "size", "compact", "case", "time", "rand"],
+      "properties": {
+        "prefix": {
+          "description": "The prefix; null for none. An empty string is no prefix too.",
+          "type": ["string", "null"]
+        },
+        "size": { "enum": ["xs", "s", "m", "l", "xl"] },
+        "compact": {
+          "description": "Compact time (40 bits) when true, standard time (48 bits) when false.",
+          "type": "boolean"
+        },
+        "case": {
+          "description": "The letter case of the body.",
+          "enum": ["lower", "upper"]
+        },
+        "time": {
+          "description": "Milliseconds since the Unix epoch.",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 281474976710655
+        },
+        "rand": {
+          "description": "The random field's bytes as lowercase hex, exactly the random width of the size and mode.",
+          "type": "string",
+          "pattern": "^([0-9a-f]{2}){0,10}$"
+        }
+      }
+    },
+    "expected": {
+      "description": "The id the producer emits.",
+      "type": "string"
+    }
+  }
+}

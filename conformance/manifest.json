@@ -1,0 +1,1 @@
+{"corpus_hash":"sha256:2ab7398ca1de245d3072ff6bf737432b6b1b86253d15990f13b9bb745f1d6a7b","corpus_version":1,"files":[{"case_count":35,"file":"encode.json","kind":"encode"},{"case_count":12,"file":"deterministic.json","kind":"deterministic"},{"case_count":18,"file":"decode.json","kind":"decode"}]}

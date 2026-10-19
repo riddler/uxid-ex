@@ -302,6 +302,26 @@ The reasons are a closed set of names, not messages. In this library
 `UXID.decode/1` answers `{:ok, codec}` or `{:error, reason}` with the reason as
 an atom.
 
+## Generation errors
+
+A producer refuses a request whose options contradict each other or the
+format. Each refusal has a name, from the option that caused it:
+
+| Name                        | When                                                        |
+|-----------------------------|-------------------------------------------------------------|
+| `compact_time_out_of_range` | a compact time whose first character would be the marker (see [Time field](#time-field)) |
+| `rand_width_mismatch`       | a fixed random field whose byte count is not the request's random width |
+| `rand_size_too_large`       | an explicit random width above 10 bytes                     |
+| `from_with_monotonic`       | a deterministic body asked for with monotonic generation    |
+| `rand_with_from`            | a fixed random field asked for with a deterministic body    |
+| `rand_with_monotonic`       | a fixed random field asked for with monotonic generation    |
+
+The names are a closed set, not messages, and they are the names the
+conformance corpus gives these refusals. This library raises `ArgumentError`
+for each of them (a fixed random field is its `rand:` option); it also raises
+for options this table does not name, such as a monotonic xs with an explicit
+standard time.
+
 ## Out of scope
 
 These are part of this library but not of the wire format, and a conforming

@@ -11,9 +11,12 @@ defmodule UXID.Corpus do
   # manifest entry, in the order of @kinds. Adding a kind is a source file, an
   # entry in @kinds and a build_case/2 clause.
 
-  alias UXID.Corpus.JSON
+  import Bitwise
 
-  @kinds ["encode", "deterministic", "decode"]
+  alias UXID.Corpus.JSON
+  alias UXID.Corpus.Monotonic
+
+  @kinds ["encode", "deterministic", "decode", "invalid", "monotonic"]
   @corpus_dir "conformance"
   @manifest_path "conformance/manifest.json"
   @corpus_version 1
@@ -24,6 +27,27 @@ defmodule UXID.Corpus do
   # Crockford Base32 values by character, both cases; used only to read a
   # standard time back out of a body for the 10 and 18 ambiguity check.
   @alphabet ~c"0123456789abcdefghjkmnpqrstvwxyz"
+
+  # The decode refusal reasons UXID.decode/1 names.
+  @decode_errors [:empty, :invalid_length, :invalid_character]
+
+  # The generation errors, named by the option that caused each. The library
+  # raises ArgumentError for all of them; the names are the corpus's (listed in
+  # guides/wire-format.md, "Generation errors"). The message fragment ties each
+  # name to the refusal that raised it, so a case cannot carry the name of a
+  # different refusal than the one the library made.
+  @generation_errors %{
+    compact_time_out_of_range: "compact_time cannot encode",
+    rand_width_mismatch: "rand: must be exactly",
+    rand_size_too_large: "rand_size must be at most",
+    from_with_monotonic: "from: (deterministic mode) and monotonic: true",
+    rand_with_from: "rand: and from: are mutually exclusive",
+    rand_with_monotonic: "rand: cannot be used with monotonic"
+  }
+
+  # Every integer a case carries stays at or below 2^53 - 1, so a runner whose
+  # JSON parser reads numbers as doubles reads each one exactly.
+  @max_json_integer (1 <<< 53) - 1
 
   @typedoc "Relative path from the project root mapped to the exact bytes it holds."
   @type file_map :: %{String.t() => binary()}
@@ -83,6 +107,7 @@ defmodule UXID.Corpus do
 
     case build_case(kind, authored) do
       {:ok, input, expected} -> {:ok, %{"id" => id, "input" => input, "expected" => expected}}
+      {:refused, input, name} -> {:ok, %{"id" => id, "input" => input, "expected_error" => name}}
       {:error, problem} -> {:error, id <> ": " <> problem}
     end
   rescue
@@ -168,6 +193,118 @@ defmodule UXID.Corpus do
     case UXID.decode(string) do
       {:ok, codec} -> {:ok, string, decoded(codec)}
       {:error, reason} -> {:error, "#{string} is refused (#{reason}); a decode case decodes"}
+    end
+  end
+
+  # --- invalid
+
+  # A decode refusal: the reason UXID.decode/1 gives, checked against the
+  # authored one so a case cannot silently change what it tests.
+  defp build_case("invalid", %{decode: string, expected_error: want}) when is_binary(string) do
+    case UXID.decode(string) do
+      {:error, ^want} when want in @decode_errors ->
+        {:refused, %{"decode" => string}, Atom.to_string(want)}
+
+      {:error, reason} ->
+        {:error, "#{inspect(string)} is refused for #{reason}, the case says #{want}"}
+
+      {:ok, _codec} ->
+        {:error, "#{inspect(string)} decodes; an invalid case is refused"}
+    end
+  end
+
+  # A generation error: the library must raise ArgumentError for the option
+  # set, with the refusal the authored name stands for.
+  defp build_case("invalid", %{generate: opts, expected_error: want}) when is_list(opts) do
+    case Map.fetch(@generation_errors, want) do
+      {:ok, fragment} -> generation_error(opts, want, fragment)
+      :error -> {:error, "#{want} is not a generation error name"}
+    end
+  end
+
+  # --- monotonic
+
+  # The case's draws are replayed through the monotonic rule
+  # (UXID.Corpus.Monotonic) and every id is built by the library with `time:`
+  # and `rand:`, monotonic off, so no random source and no PRNG enters the
+  # expected strings.
+  defp build_case("monotonic", authored) do
+    %{prefix: prefix, size: size, compact: compact, times: times} = authored
+    true = size in @sizes
+    overflow_seed = Map.get(authored, :overflow_seed)
+    {:ok, %{rand_size: width}} = UXID.new(size: size, compact_time: compact, monotonic: false)
+
+    input = %{
+      "prefix" => prefix,
+      "size" => Atom.to_string(size),
+      "compact" => compact,
+      "times" => times,
+      "initial_seed" => authored.initial_seed,
+      "steps" => authored.steps,
+      "overflow_seed" => overflow_seed
+    }
+
+    draws = %{
+      width: width,
+      times: times,
+      initial_seed: authored.initial_seed,
+      steps: authored.steps,
+      overflow_seed: overflow_seed
+    }
+
+    with :ok <- steppable(width),
+         :ok <- json_safe([overflow_seed, authored.initial_seed | times ++ authored.steps]),
+         {:ok, values} <- Monotonic.replay(draws) do
+      expected =
+        Enum.map(values, fn {time, value} ->
+          UXID.generate!(
+            prefix: prefix,
+            size: size,
+            compact_time: compact,
+            case: :lower,
+            monotonic: false,
+            time: time,
+            rand: <<value::unsigned-size(width * 8)>>
+          )
+        end)
+
+      {:ok, input, expected}
+    end
+  end
+
+  defp generation_error(opts, name, fragment) do
+    UXID.generate!(opts)
+    {:error, "the library builds an id for #{inspect(opts)}; an invalid case raises"}
+  rescue
+    error in ArgumentError ->
+      message = Exception.message(error)
+
+      if String.contains?(message, fragment),
+        do: {:refused, %{"generate" => generate_input(opts)}, Atom.to_string(name)},
+        else: {:error, "the library raises #{inspect(message)}, not #{name}"}
+  end
+
+  # The options of a generation case, spelt as an encode case spells them:
+  # `compact` for compact_time, atoms as strings, `rand` as lowercase hex.
+  defp generate_input(opts) do
+    Map.new(opts, fn
+      {:compact_time, value} -> {"compact", value}
+      {:rand, bytes} when is_binary(bytes) -> {"rand", Base.encode16(bytes, case: :lower)}
+      {key, value} when is_boolean(value) or is_nil(value) -> {Atom.to_string(key), value}
+      {key, value} when is_atom(value) -> {Atom.to_string(key), Atom.to_string(value)}
+      {key, value} -> {Atom.to_string(key), value}
+    end)
+  end
+
+  # The codec's type has no 0 width, but a standard xs resolves to one.
+  defp steppable(width) do
+    if width > 0, do: :ok, else: {:error, "the size and mode have no random field to step"}
+  end
+
+  defp json_safe(integers) do
+    case Enum.find(integers, &(is_integer(&1) and &1 > @max_json_integer)) do
+      nil -> :ok
+      big -> {:error, "#{big} is above 2^53 - 1, which a JSON double cannot carry exactly"}
     end
   end
 

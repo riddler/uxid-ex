@@ -48,6 +48,99 @@ defmodule UXIDTest do
     end
   end
 
+  describe "decode/1 refusals" do
+    # Sabotage: the empty-body clause of the decoder's refusal check removed ->
+    # "" and "usr_" reach the length rule and answer :invalid_length.
+    test "an empty body answers :empty" do
+      assert {:error, :empty} = UXID.decode("")
+      assert {:error, :empty} = UXID.decode("usr_")
+    end
+
+    # Sabotage: the length rule skipped (every length passes) -> "01G2B5M42HW"
+    # answers {:ok, _} with an unknown size.
+    test "a body length outside the size table answers :invalid_length" do
+      for body <- [
+            "01G2B5M42HW",
+            "01G2B5M42",
+            String.duplicate("0", 25),
+            String.duplicate("0", 30),
+            "usr_" <> String.duplicate("0", 11)
+          ] do
+        assert UXID.decode(body) == {:error, :invalid_length}, "for #{inspect(body)}"
+      end
+    end
+
+    # Sabotage: the character rule skipped (every character passes) ->
+    # "01G2B5M42HWY45WE5YQE3P2CJL" answers {:ok, _}.
+    test "a character outside the alphabet answers :invalid_character" do
+      for body <- [
+            "01G2B5M42HWY45WE5YQE3P2CJL",
+            "01G2B5M4UH",
+            "01G2B5M42H-Y45WE5YQE3P2CJ2",
+            "usr_01G2B5M42HWY45WE5YQE3P2CJI",
+            "usr_01g2b5m42hwy45we5yqe3p2cjo"
+          ] do
+        assert UXID.decode(body) == {:error, :invalid_character}, "for #{inspect(body)}"
+      end
+    end
+
+    # Sabotage: the alphabet check lets any byte above 127 through -> a body
+    # carrying a byte that is not valid UTF-8 answers {:ok, _}.
+    test "a body with a byte that is not valid UTF-8 answers :invalid_character" do
+      body = "01G2B5M42H" <> <<255>> <> "Y45WE5YQE3P2CJ2"
+      assert {:error, :invalid_character} = UXID.decode(body)
+    end
+
+    # Sabotage: the character rule skipped for a body starting with the marker ->
+    # a deterministic body with a bad character answers {:ok, _}.
+    test "a deterministic body with a character outside the alphabet is refused" do
+      assert {:error, :invalid_character} = UXID.decode("z1G2B5M42HWY45WE5YQE3P2CJO")
+      assert {:error, :invalid_character} = UXID.decode("usr_Zqz4cwzgyw8ks978u9")
+    end
+
+    # Sabotage: the character rule checked before the length rule -> a body that
+    # fails both answers :invalid_character.
+    test "a body failing both the length and the character rule answers :invalid_length" do
+      assert {:error, :invalid_length} = UXID.decode("01G2B5M42HU")
+      assert {:error, :invalid_length} = UXID.decode("usr_0I")
+    end
+
+    # Sabotage: the alphabet narrowed to upper case only -> a lower-case body is
+    # refused with :invalid_character.
+    test "a well-formed body decodes in either case, at every length in the table" do
+      for length <- [10, 13, 14, 18, 21, 22, 24, 26] do
+        upper = String.slice("01G2B5M42HWY45WE5YQE3P2CJ2", 0, length)
+        assert match?({:ok, %UXID.Codec{}}, UXID.decode(upper)), "for #{inspect(upper)}"
+
+        lower = String.downcase(upper)
+        assert match?({:ok, %UXID.Codec{}}, UXID.decode("usr_" <> lower)), "for #{inspect(lower)}"
+      end
+    end
+
+    # Sabotage: valid?/2's minimum body length raised from 8 to 10 -> "01G2B5M42"
+    # answers false.
+    test "valid?/2 answers what it answered before decode refused these bodies" do
+      # The answers valid?/2 gave for each body before decode/1 answered errors.
+      for {body, expected} <- [
+            {"", false},
+            {"usr_", false},
+            {"01G2B5M42", true},
+            {"01G2B5M42HW", true},
+            {String.duplicate("0", 25), true},
+            {String.duplicate("0", 30), true},
+            {"01G2B5M4UH", false},
+            {"01G2B5M42HWY45WE5YQE3P2CJL", false},
+            {"z1G2B5M42HWY45WE5YQE3P2CJO", false},
+            {"01G2B5M42H-Y45WE5YQE3P2CJ2", false},
+            {"01G2B5M42HU", false},
+            {"usr_01G2B5M42HWY45WE5YQE3P2CJI", false},
+            {"usr_01g2b5m42hwy45we5yqe3p2cjo", false}
+          ] do
+        assert UXID.valid?(body) == expected, "for #{inspect(body)}"
+      end
+    end
+  end
+
   describe "cast/2" do
     test "casting this thing" do
       assert {:ok, _} = UXID.cast(UXID.generate!(), %{})

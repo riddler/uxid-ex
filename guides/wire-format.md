@@ -292,6 +292,9 @@ is decoded only when it is well formed.
 | `invalid_character` | a body character is not in the alphabet in either case       |
 | `invalid_length`    | the body length is not in the length table                   |
 
+A body that fails more than one rule is refused for the first it fails, checked
+in this order: `empty`, `invalid_length`, `invalid_character`.
+
 The reasons are a closed set of names, not messages. In this library
 `UXID.decode/1` answers `{:ok, codec}` or `{:error, reason}` with the reason as
 an atom.

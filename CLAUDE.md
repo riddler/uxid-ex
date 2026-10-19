@@ -95,6 +95,10 @@ publishes on that tag push, and a failed workflow is re-run from its Actions
 page, never worked round by a local publish. Merging the prep follows this
 file's merge row, and nothing else this file reserves for the operator
 changes. (Adopted at onboarding, ruled by the operator, 2026-10-05.)
+The full gate's Corpus stage (`.quality.exs`, `mix uxid.corpus --check`)
+holds `conformance/`, the corpus other ports vendor at a release tag, to
+what the library generates; a prep is cut only on a green Corpus stage
+(2026-10-18).
 
 This repository keeps no decision records (`docs/adr`). A release or gating
 decision is recorded here, in the authority table and this paragraph, and in

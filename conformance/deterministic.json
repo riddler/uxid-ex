@@ -1,0 +1,12 @@
+{"expected":"usr_zcvt7epac0t1ebcsjfyf7cwz25","id":"deterministic/golden-usr-xl","input":{"case":"lower","from":"alice@example.com","prefix":"usr","size":"xl"}}
+{"expected":"cus_zt9vnyfd85bff0","id":"deterministic/golden-cus-s","input":{"case":"lower","from":"acme-corp","prefix":"cus","size":"s"}}
+{"expected":"zqz4cwzgyw8ks97869","id":"deterministic/golden-no-prefix-m","input":{"case":"lower","from":"alice@example.com","prefix":null,"size":"m"}}
+{"expected":"usr_z1yhw20vag","id":"deterministic/usr-xs","input":{"case":"lower","from":"alice@example.com","prefix":"usr","size":"xs"}}
+{"expected":"usr_z5rtsrkhx2h4dr","id":"deterministic/usr-s","input":{"case":"lower","from":"alice@example.com","prefix":"usr","size":"s"}}
+{"expected":"usr_zt8naccefxhwnrmscd","id":"deterministic/usr-m","input":{"case":"lower","from":"alice@example.com","prefix":"usr","size":"m"}}
+{"expected":"usr_zwbz6myvgz7ehe3nceap5n","id":"deterministic/usr-l","input":{"case":"lower","from":"alice@example.com","prefix":"usr","size":"l"}}
+{"expected":"usr_zcvt7epac0t1ebcsjfyf7cwz25","id":"deterministic/usr-xl","input":{"case":"lower","from":"alice@example.com","prefix":"usr","size":"xl"}}
+{"expected":"z4krgegf6drn563pvqhya4tsx9","id":"deterministic/empty-prefix-xl","input":{"case":"lower","from":"alice@example.com","prefix":"","size":"xl"}}
+{"expected":"z4krgegf6drn563pvqhya4tsx9","id":"deterministic/no-prefix-xl","input":{"case":"lower","from":"alice@example.com","prefix":null,"size":"xl"}}
+{"expected":"usr_ZCVT7EPAC0T1EBCSJFYF7CWZ25","id":"deterministic/usr-xl-upper","input":{"case":"upper","from":"alice@example.com","prefix":"usr","size":"xl"}}
+{"expected":"cus_zfsx9se75671f9kdjv","id":"deterministic/non-ascii-from-m","input":{"case":"lower","from":"café","prefix":"cus","size":"m"}}

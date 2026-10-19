@@ -238,18 +238,21 @@ the random field and its width as not supported on decode.
 
 ### Length to size
 
-The body length alone gives the size and the time form:
+The body length alone gives the size and the time form. This is the length
+table. The length is counted in bytes: every body character a producer emits
+is one ASCII byte, and counting bytes gives every decoder the same length for
+any other input too.
 
-| Body length | Size | Mode     |
-|-------------|------|----------|
-| 10          | xs   | standard |
-| 13          | s    | compact  |
-| 14          | s    | standard |
-| 18          | m    | standard |
-| 21          | l    | compact  |
-| 22          | l    | standard |
-| 24          | xl   | compact  |
-| 26          | xl   | standard |
+| Body length (bytes) | Size | Mode     |
+|---------------------|------|----------|
+| 10                  | xs   | standard |
+| 13                  | s    | compact  |
+| 14                  | s    | standard |
+| 18                  | m    | standard |
+| 21                  | l    | compact  |
+| 22                  | l    | standard |
+| 24                  | xl   | compact  |
+| 26                  | xl   | standard |
 
 **The 10 and 18 ambiguities.** A compact xs body and a compact m body have the
 lengths of a standard xs and a standard m body (10 and 18). A decoder MUST read
@@ -281,7 +284,7 @@ its size from the length (always a standard length) and no time.
 ### Refusals
 
 A body is well formed when every character is in the alphabet (either case)
-and its length is in the length table above. A decoder MUST decode a
+and its length in bytes is in the length table above. A decoder MUST decode a
 well-formed body and MUST refuse any other input with one of these reasons.
 The rule is the same for deterministic bodies: a body starting with the marker
 is decoded only when it is well formed.
@@ -290,7 +293,7 @@ is decoded only when it is well formed.
 |---------------------|--------------------------------------------------------------|
 | `empty`             | the body is empty (an empty string, or one ending in the delimiter) |
 | `invalid_character` | a body character is not in the alphabet in either case       |
-| `invalid_length`    | the body length is not in the length table                   |
+| `invalid_length`    | the body length in bytes is not in the length table          |
 
 A body that fails more than one rule is refused for the first it fails, checked
 in this order: `empty`, `invalid_length`, `invalid_character`.

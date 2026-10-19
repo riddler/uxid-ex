@@ -270,13 +270,13 @@ defmodule UXID do
   Decodes a UXID string and returns a Codec struct with extracted components.
 
   Only a well-formed body decodes: every character in the Crockford Base32
-  alphabet (either case) and a body length in the size table. Any other input
-  answers `{:error, reason}`, deterministic bodies included, with the reason
-  for the first rule the body fails, checked in this order:
+  alphabet (either case) and a body length, in bytes, in the length table.
+  Any other input answers `{:error, reason}`, deterministic bodies included,
+  with the reason for the first rule the body fails, checked in this order:
 
     * `:empty` - the body is empty (an empty string, or one ending in the
       delimiter).
-    * `:invalid_length` - the body length is not in the size table.
+    * `:invalid_length` - the body length in bytes is not in the length table.
     * `:invalid_character` - a body character is not in the alphabet.
 
   See the wire format guide's Refusals section for the rule.

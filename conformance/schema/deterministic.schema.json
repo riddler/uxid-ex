@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "deterministic.schema.json",
+  "title": "UXID conformance case: deterministic",
+  "description": "One line of deterministic.json: the inputs of a deterministic (name-based) id and the id a producer emits for them. The delimiter is `_`.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "input", "expected"],
+  "properties": {
+    "id": {
+      "description": "Stable case id, `deterministic/` and a slug.",
+      "type": "string",
+      "pattern": "^deterministic/[a-z0-9][a-z0-9-]*$"
+    },
+    "input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["prefix", "from", "size", "case"],
+      "properties": {
+        "prefix": {
+          "description": "The prefix; null for none. An empty string is no prefix too.",
+          "type": ["string", "null"]
+        },
+        "from": {
+          "description": "The string the body is a hash of, hashed as its UTF-8 bytes.",
+          "type": "string"
+        },
+        "size": { "enum": ["xs", "s", "m", "l", "xl"] },
+        "case": {
+          "description": "The letter case of the body, the marker included.",
+          "enum": ["lower", "upper"]
+        }
+      }
+    },
+    "expected": {
+      "description": "The id the producer emits.",
+      "type": "string"
+    }
+  }
+}

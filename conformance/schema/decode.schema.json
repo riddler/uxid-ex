@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "decode.schema.json",
+  "title": "UXID conformance case: decode",
+  "description": "One line of decode.json: a string and what a decoder reads from it. The delimiter is `_`. The random field is not read back on decode.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "input", "expected"],
+  "properties": {
+    "id": {
+      "description": "Stable case id, `decode/` and a slug.",
+      "type": "string",
+      "pattern": "^decode/[a-z0-9][a-z0-9-]*$"
+    },
+    "input": {
+      "description": "The string to decode.",
+      "type": "string"
+    },
+    "expected": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["prefix", "size", "compact", "deterministic", "time"],
+      "properties": {
+        "prefix": {
+          "description": "Everything before the last delimiter; null when there is no delimiter.",
+          "type": ["string", "null"]
+        },
+        "size": {
+          "description": "The size the body length gives.",
+          "enum": ["xs", "s", "m", "l", "xl"]
+        },
+        "compact": {
+          "description": "Whether the body length is a compact one.",
+          "type": "boolean"
+        },
+        "deterministic": {
+          "description": "Whether the body starts with the marker `z` or `Z`.",
+          "type": "boolean"
+        },
+        "time": {
+          "description": "Milliseconds since the Unix epoch; null for a deterministic body. A compact time depends on the decoder's clock (see the README).",
+          "type": ["integer", "null"],
+          "minimum": 0
+        }
+      }
+    }
+  }
+}

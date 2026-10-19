@@ -6,8 +6,9 @@ defmodule UXID.Decoder do
 
   alias UXID.Codec
 
-  # Encoded body length -> {size, compact_time?}. Compact mode produces bodies
-  # one character shorter than standard for small/large, and two shorter for
+  # The length table (the wire format guide's name for it): encoded body
+  # length in bytes -> {size, compact_time?}. Compact mode produces bodies one
+  # character shorter than standard for small/large, and two shorter for
   # xlarge (24 vs 26).
   @size_by_length %{
     10 => {:xsmall, false},
@@ -45,15 +46,17 @@ defmodule UXID.Decoder do
     |> decode_rand_size()
   end
 
-  # A body is decoded only when it is well formed: not empty, a length in the
-  # size table and every character in the alphabet. A body failing more than
-  # one rule is refused for the first, in that order. A non-binary body (a
+  # A body is decoded only when it is well formed: not empty, a length in
+  # bytes in the length table and every character in the alphabet. A body
+  # failing more than one rule is refused for the first, in that order. The
+  # length is counted in bytes, not characters, so a non-ASCII body is refused
+  # for the same reason in every language. A non-binary body (a
   # caller-supplied prefix with no encoded part) passes through untouched.
   defp refusal(""), do: :empty
 
   defp refusal(encoded) when is_binary(encoded) do
     cond do
-      not Map.has_key?(@size_by_length, String.length(encoded)) -> :invalid_length
+      not Map.has_key?(@size_by_length, byte_size(encoded)) -> :invalid_length
       not alphabet_only?(encoded) -> :invalid_character
       true -> nil
     end
@@ -102,7 +105,7 @@ defmodule UXID.Decoder do
 
   def decode_size(%Codec{encoded: encoded} = struct) when is_binary(encoded) do
     # Infer size and compact mode from total encoded length.
-    {size, compact} = Map.get(@size_by_length, String.length(encoded), {:unknown, false})
+    {size, compact} = Map.get(@size_by_length, byte_size(encoded), {:unknown, false})
     %{struct | size: size, compact_time: compact}
   end
 

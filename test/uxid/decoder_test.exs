@@ -223,4 +223,18 @@ defmodule UXID.DecoderTest do
       assert decoded.size == :medium
     end
   end
+
+  describe "decode_size/1 for compact xlarge" do
+    # Sabotage: @size_by_length back to 25 => {:xlarge, true} -> 24 chars reads :unknown.
+    test "a 24 char body decodes as compact xlarge" do
+      assert %Codec{size: :xlarge, compact_time: true} =
+               Decoder.decode_size(%Codec{encoded: String.duplicate("0", 24)})
+    end
+
+    # Sabotage: @size_by_length back to 25 => {:xlarge, true} -> 25 chars reads compact xlarge.
+    test "a 25 char body no longer maps to a size" do
+      assert %Codec{size: :unknown, compact_time: false} =
+               Decoder.decode_size(%Codec{encoded: String.duplicate("0", 25)})
+    end
+  end
 end

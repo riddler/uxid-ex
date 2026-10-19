@@ -7,6 +7,7 @@ defmodule UXID.Encoder do
   alias UXID.Codec
 
   @default_rand_size 10
+  @max_rand_size 10
 
   @size_order [:xs, :xsmall, :s, :small, :m, :medium, :l, :large, :xl, :xlarge]
 
@@ -176,12 +177,14 @@ defmodule UXID.Encoder do
   defp ensure_rand_size(%Codec{rand_size: nil, size: :large} = uxid),
     do: %{uxid | rand_size: 7}
 
-  # Compact mode for xlarge (when explicitly requested)
+  # Compact mode for xlarge (when explicitly requested). The random field is
+  # capped at 10 bytes, so xlarge keeps 10 bytes; the 8 bits freed from the
+  # timestamp shorten the body instead.
   defp ensure_rand_size(%Codec{rand_size: nil, size: :xl, compact_time: true} = uxid),
-    do: %{uxid | rand_size: 11}
+    do: %{uxid | rand_size: 10}
 
   defp ensure_rand_size(%Codec{rand_size: nil, size: :xlarge, compact_time: true} = uxid),
-    do: %{uxid | rand_size: 11}
+    do: %{uxid | rand_size: 10}
 
   defp ensure_rand_size(%Codec{rand_size: nil, size: :xl} = uxid),
     do: %{uxid | rand_size: 10}
@@ -191,6 +194,15 @@ defmodule UXID.Encoder do
 
   defp ensure_rand_size(%Codec{rand_size: nil} = uxid),
     do: %{uxid | rand_size: @default_rand_size}
+
+  defp ensure_rand_size(%Codec{rand_size: rand_size})
+       when is_integer(rand_size) and rand_size > @max_rand_size,
+       do:
+         raise(
+           ArgumentError,
+           "rand_size must be at most #{@max_rand_size} bytes " <>
+             "(the random field is capped at 80 bits), got: #{rand_size}"
+         )
 
   defp ensure_rand_size(uxid), do: uxid
 

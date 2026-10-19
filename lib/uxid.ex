@@ -67,6 +67,9 @@ defmodule UXID do
   An empty `prefix: ""` is the same as no prefix: the ID is the bare body, with
   no leading delimiter.
 
+  An explicit `rand_size` above 10 raises `ArgumentError` (the random field is
+  capped at 10 bytes).
+
   ## Deterministic (name-based) IDs
 
   Passing `from:` switches to deterministic mode: the same input string always

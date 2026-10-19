@@ -20,21 +20,51 @@ defmodule UXID.Decoder do
     26 => {:xlarge, false}
   }
 
-  @spec process(Codec.t()) :: {:ok, Codec.t()}
-  def process(%Codec{} = struct) do
-    decoded =
-      struct
-      |> separate_prefix()
-      |> detect_scheme()
-      |> decode_size()
-      |> ensure_compact_time()
-      |> separate_encoded()
-      |> decode_time()
-      |> decode_rand()
-      |> decode_rand_size()
+  # The body alphabet: Crockford Base32 in either case, without I, L, O and U.
+  @body_alphabet ~c"0123456789ABCDEFGHJKMNPQRSTVWXYZabcdefghjkmnpqrstvwxyz"
 
-    {:ok, decoded}
+  @spec process(Codec.t()) ::
+          {:ok, Codec.t()} | {:error, :empty | :invalid_length | :invalid_character}
+  def process(%Codec{} = struct) do
+    separated = separate_prefix(struct)
+
+    case refusal(separated.encoded) do
+      nil -> {:ok, decode_body(separated)}
+      reason -> {:error, reason}
+    end
   end
+
+  defp decode_body(%Codec{} = struct) do
+    struct
+    |> detect_scheme()
+    |> decode_size()
+    |> ensure_compact_time()
+    |> separate_encoded()
+    |> decode_time()
+    |> decode_rand()
+    |> decode_rand_size()
+  end
+
+  # A body is decoded only when it is well formed: not empty, a length in the
+  # size table and every character in the alphabet. A body failing more than
+  # one rule is refused for the first, in that order. A non-binary body (a
+  # caller-supplied prefix with no encoded part) passes through untouched.
+  defp refusal(""), do: :empty
+
+  defp refusal(encoded) when is_binary(encoded) do
+    cond do
+      not Map.has_key?(@size_by_length, String.length(encoded)) -> :invalid_length
+      not alphabet_only?(encoded) -> :invalid_character
+      true -> nil
+    end
+  end
+
+  defp refusal(_encoded), do: nil
+
+  # Byte by byte: the alphabet is ASCII, so any other byte (including one that
+  # is not valid UTF-8) is outside it.
+  defp alphabet_only?(encoded),
+    do: encoded |> :binary.bin_to_list() |> Enum.all?(&(&1 in @body_alphabet))
 
   # A leading `z`/`Z` marker (Crockford value 31) identifies a deterministic
   # (name-based) ID. Deterministic bodies reuse the standard (non-compact)

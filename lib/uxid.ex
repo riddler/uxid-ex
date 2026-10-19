@@ -195,9 +195,33 @@ defmodule UXID do
   """
   def monotonic(), do: Application.get_env(:uxid, :monotonic, false)
 
-  @spec decode(String.t()) :: {:ok, Codec.t()}
+  @spec decode(String.t()) ::
+          {:ok, Codec.t()} | {:error, :empty | :invalid_length | :invalid_character}
   @doc """
   Decodes a UXID string and returns a Codec struct with extracted components.
+
+  Only a well-formed body decodes: every character in the Crockford Base32
+  alphabet (either case) and a body length in the size table. Any other input
+  answers `{:error, reason}`, deterministic bodies included, with the reason
+  for the first rule the body fails, checked in this order:
+
+    * `:empty` - the body is empty (an empty string, or one ending in the
+      delimiter).
+    * `:invalid_length` - the body length is not in the size table.
+    * `:invalid_character` - a body character is not in the alphabet.
+
+  See the wire format guide's Refusals section for the rule.
+
+  ## Examples
+
+      iex> UXID.decode("usr_")
+      {:error, :empty}
+
+      iex> UXID.decode("usr_01g2b5m42hw")
+      {:error, :invalid_length}
+
+      iex> UXID.decode("usr_01g2b5m42hwy45we5yqe3p2cjl")
+      {:error, :invalid_character}
   """
   def decode(uxid) do
     %Codec{

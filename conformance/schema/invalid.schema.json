@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "invalid.schema.json",
+  "title": "UXID conformance case: invalid",
+  "description": "One line of invalid.json: a string a decoder refuses, or options a producer refuses to build an id from, and the name of the error. The delimiter is `_`. Error names are a closed set (the wire format guide's Refusals and Generation errors), never messages.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "input", "expected_error"],
+  "properties": {
+    "id": {
+      "description": "Stable case id, `invalid/` and a slug.",
+      "type": "string",
+      "pattern": "^invalid/[a-z0-9][a-z0-9-]*$"
+    },
+    "input": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["decode"],
+          "properties": {
+            "decode": {
+              "description": "The string to decode. Its body length is counted in bytes.",
+              "type": "string"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["generate"],
+          "properties": {
+            "generate": {
+              "description": "The options of the refused request, spelt as an encode case spells them; an absent option takes its default.",
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "prefix": { "type": ["string", "null"] },
+                "size": { "enum": ["xs", "s", "m", "l", "xl"] },
+                "compact": {
+                  "description": "Compact time (40 bits) when true, standard time (48 bits) when false.",
+                  "type": "boolean"
+                },
+                "case": { "enum": ["lower", "upper"] },
+                "time": {
+                  "description": "Milliseconds since the Unix epoch.",
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 281474976710655
+                },
+                "rand": {
+                  "description": "A fixed random field as lowercase hex.",
+                  "type": "string",
+                  "pattern": "^([0-9a-f]{2})*$"
+                },
+                "rand_size": {
+                  "description": "An explicit random field width in bytes.",
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "from": {
+                  "description": "The input string of a deterministic id.",
+                  "type": "string"
+                },
+                "monotonic": {
+                  "description": "Monotonic generation.",
+                  "type": "boolean"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "expected_error": {
+      "description": "A decode input's refusal reason, or a generate input's generation error.",
+      "enum": [
+        "empty",
+        "invalid_length",
+        "invalid_character",
+        "compact_time_out_of_range",
+        "rand_width_mismatch",
+        "rand_size_too_large",
+        "from_with_monotonic",
+        "rand_with_from",
+        "rand_with_monotonic"
+      ]
+    }
+  }
+}

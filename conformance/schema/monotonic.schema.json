@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "monotonic.schema.json",
+  "title": "UXID conformance case: monotonic",
+  "description": "One line of monotonic.json: one monotonic generator's calls, the draws its random source made, and the ids it emits. The delimiter is `_` and the body is lower case. Every integer is at most 2^53 - 1.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "input", "expected"],
+  "properties": {
+    "id": {
+      "description": "Stable case id, `monotonic/` and a slug.",
+      "type": "string",
+      "pattern": "^monotonic/[a-z0-9][a-z0-9-]*$"
+    },
+    "input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "prefix",
+        "size",
+        "compact",
+        "times",
+        "initial_seed",
+        "steps",
+        "overflow_seed"
+      ],
+      "properties": {
+        "prefix": {
+          "description": "The prefix; null for none.",
+          "type": ["string", "null"]
+        },
+        "size": { "enum": ["xs", "s", "m", "l", "xl"] },
+        "compact": {
+          "description": "Compact time when true; it fixes the random field's width w with the size. A monotonic xs is compact.",
+          "type": "boolean"
+        },
+        "times": {
+          "description": "The current time of each call, in milliseconds since the Unix epoch, one per id. No time after the first is later than the last id's time.",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 281474976710655
+          }
+        },
+        "initial_seed": {
+          "description": "The first id's random field, the fresh secure value, as an unsigned integer below 2^(8w).",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "steps": {
+          "description": "The step drawn for each id after the first, each from 1 to 2^(4w).",
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          }
+        },
+        "overflow_seed": {
+          "description": "The fresh secure value the id whose step overflows the field takes; null when no step overflows. A case overflows at most once.",
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      }
+    },
+    "expected": {
+      "description": "The ids the generator emits, one per call, in call order.",
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string" }
+    }
+  }
+}

@@ -26,7 +26,9 @@ and regenerate:
 
 The generator refuses to write anything when a case fails to build: the
 library disagreeing with a golden vector (a case in `source/` that carries its
-expected id), an encode case that does not decode back, or a duplicate id.
+expected id), an encode case that does not decode back, an invalid case the
+library does not refuse with the error the case names, a monotonic case whose
+draws break the monotonic rule, or a duplicate id.
 
 ## Layout
 
@@ -36,6 +38,8 @@ expected id), an encode case that does not decode back, or a duplicate id.
 | `encode.json` | Time-based ids: inputs to the id a producer emits |
 | `deterministic.json` | Deterministic ids: inputs to the id a producer emits |
 | `decode.json` | Strings to what a decoder reads from them |
+| `invalid.json` | Strings a decoder refuses and options a producer refuses, to the error's name |
+| `monotonic.json` | One monotonic generator's calls and draws to the ids it emits |
 | `schema/` | One JSON Schema per case file (describing one line) and one for the manifest |
 | `source/` | The authored source the generator reads; not needed to run the cases |
 
@@ -44,8 +48,14 @@ expected id), an encode case that does not decode back, or a duplicate id.
 - A case file holds one JSON object per line, each line ended by a newline.
   Object keys are sorted and there is no whitespace between tokens.
 - Every case has a stable `id`, its kind and a slug (`encode/xl-standard-lower`),
-  its `input`, and its `expected` answer. A case id never changes meaning; a
-  case that has to change gets a new id.
+  its `input`, and either its `expected` answer or, in `invalid.json`, its
+  `expected_error`. A case id never changes meaning; a case that has to change
+  gets a new id.
+- An error is a name from a closed set, never a message: the decode refusal
+  reasons and the generation errors the wire format guide lists ("Refusals"
+  and "Generation errors").
+- Every integer is at most 2^53 - 1, so a JSON parser that reads numbers as
+  doubles reads each one exactly.
 - Bytes are lowercase hex. Times are integer milliseconds since the Unix
   epoch. Sizes are `xs`, `s`, `m`, `l` and `xl`. A missing prefix is `null`.
 - The delimiter is `_` in every case.
@@ -72,21 +82,39 @@ expected id), an encode case that does not decode back, or a duplicate id.
    - **decode**: decode `input` and compare the prefix, size, compact flag,
      deterministic flag and time to `expected`. The random field is not read
      back on decode, so no case carries one.
+   - **invalid**: for `input.decode`, decode the string and check it is
+     refused with the reason `expected_error` (the body length is counted in
+     bytes). For `input.generate`, make the request with those options (an
+     absent option takes its default) and check it is refused with the
+     generation error `expected_error`; how a port maps its own refusal to
+     the name is the port's.
+   - **monotonic**: run a monotonic generator, lower case, for `input.prefix`,
+     `input.size` and `input.compact`, with its random source replaced by the
+     case's draws, and call it once per entry of `input.times` with that time.
+     The first call draws `initial_seed`; each later call draws the next of
+     `steps`; the call whose step overflows the field also draws
+     `overflow_seed` (a case overflows at most once). Compare the ids to
+     `expected` in order. The draws are values, not a seed for a pseudorandom
+     generator, so no generator algorithm is part of the corpus. No time after
+     the first is later than the last id's time, so no other fresh value is
+     drawn.
 4. Report each failing case by its `id`.
 
 ## Compact times and the decoder's clock
 
 A compact body carries only the low 40 bits of its time; the decoder supplies
 the rest from its own clock (the guide's "Decoding the time"). The compact
-decode cases carry the full time this library recovers, and they hold for a
-decoder clock from 2023-11-15 until 2038-08-04 (UTC):
+decode cases carry the full time this library recovers, and they all hold for
+a decoder clock from 1699913600000 ms (2023-11-13T22:13:20.000Z) inclusive
+to 2164577117183 ms (2038-08-04T23:25:17.183Z) exclusive:
 
-- the times are well inside the current 2^40 ms window (2004 to 2039), so a
-  clock in that window recovers them;
+- the cases at 1700000000000 ms are recovered by a clock no more than one day
+  (86400000 ms) behind them, which sets the start;
 - `decode/s-compact-guard-last-valid` is the compact guard's last valid
-  millisecond (the largest compact time field) from the window before, and is
-  recovered by the one-window subtraction while the clock is more than one day
-  short of that field in the current window.
+  millisecond (the largest compact time field, 1065151889407) from the window
+  before, and is recovered by the one-window subtraction only while
+  2^40 + 1065151889407 is more than one day ahead of the clock, which sets
+  the end.
 
 A runner testing compact decode on a clock outside that range injects the
 clock rather than reading the system time.

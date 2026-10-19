@@ -280,10 +280,11 @@ its size from the length (always a standard length) and no time.
 
 ### Refusals
 
-A body is well formed when it is not empty, every character is in the alphabet
-(either case), and its length is in the length table above. A decoder MUST
-decode a well-formed body and MUST refuse any other, with one of these reasons,
-checked in this order:
+A body is well formed when every character is in the alphabet (either case)
+and its length is in the length table above. A decoder MUST decode a
+well-formed body and MUST refuse any other input with one of these reasons.
+The rule is the same for deterministic bodies: a body starting with the marker
+is decoded only when it is well formed.
 
 | Reason              | When                                                         |
 |---------------------|--------------------------------------------------------------|

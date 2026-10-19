@@ -23,20 +23,15 @@ non-binary and it raises. For a composite key, stringify it yourself first
 
 ## Size and length
 
-Deterministic bodies reuse the standard (non-compact) lengths, spending the whole
-body - minus the one-character marker - on hash bits:
+Deterministic bodies reuse the standard (non-compact) body length of each size,
+spending the whole body - minus the one-character marker - on hash bits. The
+exact hash input, the hash width at each size and the marker are specified in
+[Deterministic bodies](wire-format.md#deterministic-bodies) on the UXID wire
+format page.
 
-| Size          | Aliases      | Body length | Hash bits |
-|---------------|--------------|-------------|-----------|
-| `:xs`         | `:xsmall`    | 10 chars    | 45        |
-| `:s`          | `:small`     | 14 chars    | 65        |
-| `:m`          | `:medium`    | 18 chars    | 85        |
-| `:l`          | `:large`     | 22 chars    | 105       |
-| `:xl`         | `:xlarge`    | 26 chars    | 125       |
-
-With no `:size`, generation defaults to `:xl` (125 hash bits). A deterministic ID
-carries *more* distinguishing bits than the random UXID of the same size, since it
-does not spend characters on a timestamp. Changing `size` changes the ID: the
-same input at two sizes yields unrelated bodies, not one a truncated prefix of the
-other. Case is a display concern applied at encode time - upper and lower are the
-same ID, exactly as for random UXIDs.
+With no `:size`, generation defaults to `:xl`. A deterministic ID carries *more*
+distinguishing bits than the random UXID of the same size, since it does not
+spend characters on a timestamp. Changing `size` changes the ID: the same input
+at two sizes yields unrelated bodies, not one a truncated prefix of the other.
+Case is a display concern applied at encode time - upper and lower are the same
+ID, exactly as for random UXIDs.

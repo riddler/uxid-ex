@@ -36,10 +36,11 @@ A standard `:xs` has 0 random bits - nothing to increment - so when
 [monotonic generation](monotonic.md) is active `compact_time` is enabled
 automatically for `:xs`/`:xsmall`, yielding a 1-byte (8-bit) counter field.
 Passing an explicit `compact_time: false` on `:xs`/`:xsmall` with monotonic on
-raises an `ArgumentError` (there would be no field to count). This inherits the
-compact `:xsmall` time-decode ambiguity described under
-[Compact time](#compact-time) - uniqueness and sorting are unaffected, but
-decoding the timestamp back out of a monotonic `:xs` is unreliable.
+raises an `ArgumentError` (there would be no field to count). A compact `:xs`
+body has the length of a standard one, so it inherits the time-decode ambiguity
+described in [The 10 and 18 ambiguities](wire-format.md#length-to-size) -
+uniqueness and sorting are unaffected, but decoding the timestamp back out of a
+monotonic `:xs` is unreliable.
 
 ## Collision resistance
 
@@ -88,11 +89,14 @@ UXID.generate!(size: :small)                     # 14-char body, 16 random bits
 UXID.generate!(size: :small, compact_time: true) # 13-char body, 24 random bits
 ```
 
-- Reduces the timestamp from 48 bits (10 chars) to 40 bits (8 chars).
 - Frees 8 bits for randomness - e.g. `:small` gains 50% more (24 vs 16 bits).
-- Keeps perfect 5-bit Crockford Base32 alignment.
-- Stays K-sortable until ~mid-2038, after which the compact encoder raises: value 31 (the first char `z`/`Z`) is reserved as the [deterministic-ID](deterministic.md) scheme marker, so no compact timestamp may emit it. Standard 48-bit timestamps are unaffected.
-- The decoder auto-detects the compact format from the length and reconstructs the full timestamp.
+- Stays K-sortable until ~mid-2038, after which the compact encoder raises. Standard timestamps are unaffected.
+- Decoding the timestamp back is reliable for compact `:small`, `:large` and `:xlarge`
+  only: compact `:xs` and `:medium` bodies have standard lengths.
+
+The bit layout of both time forms, the random width and body length of every
+size in both modes, the mid-2038 limit and how a decoder reconstructs a compact
+timestamp are specified in [UXID wire format](wire-format.md).
 
 Compact time is useful for test suites that mint IDs rapidly and for small
 resources that need better collision resistance without growing longer. Enable it

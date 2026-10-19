@@ -82,7 +82,8 @@ end
   - [Sizes & Encoding][guide_sizes_url]: the t-shirt sizes, how much randomness each carries, and compact-time mode.
   - [Configuration][guide_configuration_url]: every `config :uxid` key in one place, with per-call and global precedence.
   - [Registry reference][guide_registry_reference_url]: the functions a registry module defines, the options a key accepts, and the routing-table lookups.
-  - [Deterministic IDs reference][guide_deterministic_reference_url]: the `from:` option and the body length and hash width at each size.
+  - [Deterministic IDs reference][guide_deterministic_reference_url]: the `from:` option, and what size and case change in a deterministic ID.
+  - [UXID wire format][guide_wire_format_url]: the normative layout of an ID - alphabet, bit packing, sizes, prefix grammar, deterministic and monotonic bodies, and decoding - for implementations in other languages.
   - [The changelog][hexdocs_changelog_url]: what changed in each version.
 - Understand
   - [Why a UXID has a prefix, a time and randomness][guide_why_url]: what each part of an ID is for, and what you trade when you tune it.
@@ -123,6 +124,7 @@ UXID is released under the [MIT License](LICENSE).
 [guide_tuning_url]: https://hexdocs.pm/uxid/tuning.html
 [guide_registry_reference_url]: https://hexdocs.pm/uxid/registry-reference.html
 [guide_deterministic_reference_url]: https://hexdocs.pm/uxid/deterministic-reference.html
+[guide_wire_format_url]: https://hexdocs.pm/uxid/wire-format.html
 [mit_license_url]: http://opensource.org/licenses/MIT
 [uxid_talk_url]: https://www.youtube.com/watch?v=YIIJClhjxOA
 [stripe_ids_url]: https://dev.to/stripe/designing-apis-for-humans-object-ids-3o5a

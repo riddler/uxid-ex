@@ -42,11 +42,7 @@ defmodule UXID.Encoder do
   def process(%Codec{} = struct) do
     uxid =
       struct
-      |> ensure_time()
-      |> ensure_min_size()
-      |> resolve_monotonic()
-      |> ensure_compact_time()
-      |> ensure_rand_size()
+      |> resolve()
       |> ensure_rand()
       |> ensure_case()
       |> ensure_delimiter()
@@ -54,6 +50,22 @@ defmodule UXID.Encoder do
       |> prefix()
 
     {:ok, uxid}
+  end
+
+  # Resolves the time, size, monotonic setting, compact time and random field
+  # width of a time-based codec without drawing any randomness. process/1 runs
+  # these same steps first; running them on an already resolved codec changes
+  # nothing, so UXID.new/1 can read the effective rand_size and monotonic
+  # setting to validate a caller-supplied `rand` before encoding.
+  @doc false
+  @spec resolve(Codec.t()) :: struct()
+  def resolve(%Codec{} = struct) do
+    struct
+    |> ensure_time()
+    |> ensure_min_size()
+    |> resolve_monotonic()
+    |> ensure_compact_time()
+    |> ensure_rand_size()
   end
 
   # === Private helpers

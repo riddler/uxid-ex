@@ -338,4 +338,27 @@ defmodule UXID.MonotonicTest do
       refute monotonic?(size: :large, time: 1_700_000_700_003)
     end
   end
+
+  describe "rand: under the global monotonic setting" do
+    # Sabotage: put_rand/2 checks the raw per-call option instead of the
+    # resolved setting -> the global true is missed and no ArgumentError is raised.
+    test "raises ArgumentError when the global setting applies to the call" do
+      Application.put_env(:uxid, :monotonic, true)
+      on_exit(fn -> Application.delete_env(:uxid, :monotonic) end)
+
+      assert_raise ArgumentError, ~r/cannot be used with monotonic generation/, fn ->
+        UXID.new(time: 1_700_000_800_000, rand: <<0::80>>)
+      end
+    end
+
+    # Sabotage: put_rand/2 raises whenever the global setting is true, ignoring
+    # the per-call override -> monotonic: false with rand: raises.
+    test "an explicit monotonic: false with rand: is fine" do
+      Application.put_env(:uxid, :monotonic, true)
+      on_exit(fn -> Application.delete_env(:uxid, :monotonic) end)
+
+      assert {:ok, %UXID.Codec{rand: <<0::80>>, monotonic: false}} =
+               UXID.new(time: 1_700_000_800_001, monotonic: false, rand: <<0::80>>)
+    end
+  end
 end

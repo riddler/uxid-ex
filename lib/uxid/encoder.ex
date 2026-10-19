@@ -300,7 +300,7 @@ defmodule UXID.Encoder do
     do: <<e(v)>> <> encode_hash_bits(rest, case)
 
   # Hash chars per size (body = 1 marker char + this many hash chars). Mirrors the
-  # canonical table in design/deterministic-uxid.md; reuses the standard
+  # table in guides/wire-format.md (section "Deterministic bodies"); reuses the standard
   # (non-compact) lengths so the decoder's @size_by_length inference is unchanged.
   # nil/unknown sizes default to the xlarge width (25).
   defp deterministic_hash_chars(:xs), do: 9

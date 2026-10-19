@@ -6,7 +6,7 @@ defmodule UXID.DeterministicTest do
   alias UXID.{Codec, Decoder}
 
   # Body length per size for deterministic IDs (1 marker char + hash chars).
-  # Mirrors the canonical table in design/deterministic-uxid.md.
+  # Mirrors the table in guides/wire-format.md (section "Deterministic bodies").
   @body_length %{
     xs: 10,
     xsmall: 10,
